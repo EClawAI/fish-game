@@ -587,6 +587,8 @@ class Particle {
 
 class Bubble {
     constructor(canvasWidth, canvasHeight) {
+        this.canvasWidth = canvasWidth;
+        this.canvasHeight = canvasHeight;
         this.x = Math.random() * canvasWidth;
         this.y = canvasHeight + 10;
         this.size = Math.random() * 8 + 2;
@@ -594,13 +596,13 @@ class Bubble {
         this.wobble = Math.random() * Math.PI * 2;
     }
 
-    update(canvasHeight) {
+    update() {
         this.y -= this.speed;
         this.x += Math.sin(this.wobble) * 0.5;
         this.wobble += 0.05;
         if (this.y < -10) {
-            this.y = canvasHeight + 10;
-            this.x = Math.random() * canvasWidth;
+            this.y = this.canvasHeight + 10;
+            this.x = Math.random() * this.canvasWidth;
         }
     }
 
@@ -664,6 +666,7 @@ class Game {
         }
 
         this.canvas.addEventListener('mousemove', (e) => {
+            e.preventDefault();
             this.mouseX = e.clientX;
             this.mouseY = e.clientY;
         });
@@ -673,6 +676,9 @@ class Game {
             this.mouseX = e.touches[0].clientX;
             this.mouseY = e.touches[0].clientY;
         });
+        
+        // 防止右键菜单
+        this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     }
 
     updateCamera() {
@@ -692,7 +698,11 @@ class Game {
     }
 
     start() {
-        this.soundManager.init();
+        try {
+            this.soundManager.init();
+        } catch (e) {
+            console.log('Audio init failed:', e);
+        }
         
         this.player = new Fish(this.canvas.width / 2, this.canvas.height / 2, 15, 3, true);
         this.player.targetX = this.mouseX;
@@ -707,7 +717,11 @@ class Game {
         this.startScreen.classList.add('hidden');
         this.gameOverScreen.classList.add('hidden');
         
-        this.soundManager.startBGM();
+        try {
+            this.soundManager.startBGM();
+        } catch (e) {
+            console.log('BGM start failed:', e);
+        }
         
         this.updateUI();
         this.loop();
@@ -778,7 +792,7 @@ class Game {
         if (!this.isRunning) return;
         
         // 每 30 秒尝试生成特殊鱼类
-        setInterval(() => {
+        this.specialTimer = setInterval(() => {
             if (!this.isRunning || this.enemies.length < 5) return;
             
             const rand = Math.random();
@@ -807,7 +821,11 @@ class Game {
                 this.enemies.push(special);
                 
                 // 特殊鱼生成提示
-                this.showSpecialNotice(config.name);
+                try {
+                    this.showSpecialNotice(config.name);
+                } catch (e) {
+                    console.log('Notice failed:', e);
+                }
             }
         }, 30000);
     }
@@ -875,8 +893,12 @@ class Game {
     gameOver() {
         this.isRunning = false;
         this.finalScoreEl.textContent = this.score;
-        this.soundManager.playGameOverSound();
-        this.soundManager.stopBGM();
+        try {
+            this.soundManager.playGameOverSound();
+            this.soundManager.stopBGM();
+        } catch (e) {
+            console.log('Sound error:', e);
+        }
         this.gameOverScreen.classList.remove('hidden');
     }
 
@@ -924,16 +946,17 @@ class Game {
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // 先绘制背景（不受摄像机影响）
+        this.drawBackground();
+
         this.updateCamera();
 
         this.ctx.save();
         this.ctx.translate(this.camera.x, this.camera.y);
         this.ctx.scale(this.camera.scale, this.camera.scale);
 
-        this.drawBackground();
-
         this.bubbles.forEach(bubble => {
-            bubble.update(this.canvas.height / this.camera.scale);
+            bubble.update();
             bubble.draw(this.ctx);
         });
 
