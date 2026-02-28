@@ -47,22 +47,21 @@ class Fish {
         this.speed = speed;
         this.isPlayer = isPlayer;
         this.direction = Math.random() > 0.5 ? 1 : -1;
-        this.angle = Math.random() * Math.PI * 2;
+        this.angle = angle !== null ? angle : Math.random() * Math.PI * 2;
         this.targetAngle = this.angle;
         this.color = this.randomColor();
         this.tailAngle = 0;
         this.tailSpeed = 0.1 + Math.random() * 0.1;
         this.fishType = this.getFishType();
         this.glowAngle = 0;
-        this.changeDirTimer = 0;
-        this.changeDirInterval = 60 + Math.random() * 60;
         this.specialType = specialType;
         this.isSpecial = specialType !== null;
         this.rainbowAngle = 0;
         this.birthTime = Date.now();
-        this.maxLifetime = this.isSpecial ? 30000 : 15000 + Math.random() * 15000;
+        // AI 鱼寿命延长到 40-80 秒
+        this.maxLifetime = this.isPlayer ? 0 : (40000 + Math.random() * 40000);
         this.age = 0;
-        this.lastEvolutionSize = size; // 记录上次进化时的大小
+        this.isLeaving = false; // 标记是否游出世界
     }
 
     getFishType() {
@@ -85,7 +84,7 @@ class Fish {
         return oldType !== this.fishType && this.isPlayer;
     }
 
-    update(worldWidth, worldHeight, player) {
+    update(worldWidth, worldHeight, player, camera) {
         this.age = Date.now() - this.birthTime;
         
         if (this.isPlayer) {
@@ -109,36 +108,31 @@ class Fish {
             this.x = Math.max(this.size, Math.min(worldWidth - this.size, this.x));
             this.y = Math.max(this.size, Math.min(worldHeight - this.size, this.y));
         } else {
-            this.changeDirTimer++;
-            const ageFactor = Math.max(0.3, 1 - (this.age / this.maxLifetime) * 0.5);
+            // AI 鱼：直线游动，不随机转向
+            const ageFactor = Math.max(0.5, 1 - (this.age / this.maxLifetime) * 0.3);
             
-            if (this.changeDirTimer > this.changeDirInterval) {
-                this.changeDirTimer = 0;
-                this.changeDirInterval = 60 + Math.random() * 60;
-                this.targetAngle = Math.random() * Math.PI * 2;
-            }
-            
-            if (player && Math.abs(player.x - this.x) < 200 && Math.abs(player.y - this.y) < 200) {
-                if (player.size > this.size) {
-                    this.targetAngle = Math.atan2(player.y - this.y, player.x - this.x) + Math.PI;
+            // 只躲避玩家，不随机转向
+            if (player && Math.abs(player.x - this.x) < 250 && Math.abs(player.y - this.y) < 250) {
+                if (player.size > this.size * 1.2) {
+                    // 躲避玩家
+                    const escapeAngle = Math.atan2(player.y - this.y, player.x - this.x) + Math.PI;
+                    let angleDiff = escapeAngle - this.angle;
+                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                    this.angle += angleDiff * 0.03;
                 }
             }
-            
-            let angleDiff = this.targetAngle - this.angle;
-            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-            this.angle += angleDiff * 0.05;
             
             this.x += Math.cos(this.angle) * this.speed * ageFactor;
             this.y += Math.sin(this.angle) * this.speed * ageFactor;
             this.direction = Math.cos(this.angle) > 0 ? 1 : -1;
             
-            // 世界边界反弹
-            const margin = this.size * 2;
-            if (this.x < -margin) { this.x = worldWidth + margin; this.targetAngle = Math.PI / 2; }
-            else if (this.x > worldWidth + margin) { this.x = -margin; this.targetAngle = -Math.PI / 2; }
-            if (this.y < -margin) { this.y = worldHeight + margin; this.targetAngle = 0; }
-            else if (this.y > worldHeight + margin) { this.y = -margin; this.targetAngle = Math.PI; }
+            // 检查是否游出世界边界（标记为离开）
+            const margin = this.size * 3;
+            if (this.x < -margin || this.x > worldWidth + margin || 
+                this.y < -margin || this.y > worldHeight + margin) {
+                this.isLeaving = true;
+            }
         }
 
         this.tailAngle += this.tailSpeed;
@@ -606,12 +600,12 @@ class Game {
             this.bubbles.push(new Bubble(this.canvas.width, this.canvas.height));
         }
 
+        // 全局鼠标跟踪（即使移出浏览器也能跟踪）
         document.addEventListener('mousemove', (e) => {
-            e.preventDefault();
             const rect = this.canvas.getBoundingClientRect();
-            this.mouseX = Math.max(0, Math.min(this.canvas.width, e.clientX - rect.left));
-            this.mouseY = Math.max(0, Math.min(this.canvas.height, e.clientY - rect.top));
-        });
+            this.mouseX = e.clientX - rect.left;
+            this.mouseY = e.clientY - rect.top;
+        }, { passive: true });
 
         this.canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
@@ -729,9 +723,15 @@ class Game {
 
     spawnInitialEnemy() {
         const size = 8 + Math.random() * 7;
-        const x = this.player.x + (Math.random() - 0.5) * this.canvas.width;
-        const y = this.player.y + (Math.random() - 0.5) * this.canvas.height;
-        this.enemies.push(new Fish(x, y, size, 1 + Math.random() * 2, false));
+        // 从屏幕边缘生成，游向玩家
+        const angle = Math.atan2(
+            this.player.y - (Math.random() - 0.5) * this.canvas.height,
+            this.player.x - (Math.random() - 0.5) * this.canvas.width
+        );
+        const dist = this.canvas.width * 0.8;
+        const x = this.player.x + Math.cos(angle) * dist;
+        const y = this.player.y + Math.sin(angle) * dist;
+        this.enemies.push(new Fish(x, y, size, 1.5 + Math.random(), false, null, angle + Math.PI));
     }
 
     restart() {
@@ -741,15 +741,26 @@ class Game {
     spawnEnemy() {
         if (!this.isRunning) return;
 
-        const maxEnemies = CONFIG.MAX_ENEMIES_BASE + Math.floor(this.score / 100) * CONFIG.MAX_ENEMIES_PER_SCORE;
-        if (this.enemies.length >= maxEnemies) {
-            setTimeout(() => this.spawnEnemy(), 2000);
+        // 计算当前屏幕内的鱼数量（只统计屏幕内的）
+        const screenFish = this.enemies.filter(fish => {
+            const screenX = fish.x * this.camera.scale + this.camera.x;
+            const screenY = fish.y * this.camera.scale + this.camera.y;
+            return screenX >= -100 && screenX <= this.canvas.width + 100 &&
+                   screenY >= -100 && screenY <= this.canvas.height + 100;
+        }).length;
+        
+        // 屏幕内保持 8-15 条鱼
+        const minScreenFish = 8;
+        const maxScreenFish = 15;
+        
+        if (screenFish >= maxScreenFish) {
+            setTimeout(() => this.spawnEnemy(), 3000);
             return;
         }
 
         const playerSize = this.player ? this.player.size : CONFIG.PLAYER_START_SIZE;
         let size;
-        if (Math.random() < 0.7) {
+        if (Math.random() < 0.75) {
             size = Math.random() * (playerSize * 0.6) + playerSize * 0.3;
             size = Math.max(5, Math.min(size, playerSize * 0.9));
         } else {
@@ -757,18 +768,44 @@ class Game {
             size = Math.min(size, 80);
         }
         
-        let x, y;
+        // 从世界边界外生成，确保鱼会游进屏幕
+        let x, y, angle;
         const edge = Math.floor(Math.random() * 4);
+        const spawnMargin = 200; // 生成在边界外 200 像素
+        
         switch(edge) {
-            case 0: x = Math.random() * this.worldWidth; y = -50; break;
-            case 1: x = this.worldWidth + 50; y = Math.random() * this.worldHeight; break;
-            case 2: x = Math.random() * this.worldWidth; y = this.worldHeight + 50; break;
-            case 3: x = -50; y = Math.random() * this.worldHeight; break;
+            case 0: // 上边
+                x = Math.random() * this.worldWidth;
+                y = -spawnMargin;
+                angle = Math.PI / 2 + (Math.random() - 0.5) * 0.5; // 向下
+                break;
+            case 1: // 右边
+                x = this.worldWidth + spawnMargin;
+                y = Math.random() * this.worldHeight;
+                angle = Math.PI + (Math.random() - 0.5) * 0.5; // 向左
+                break;
+            case 2: // 下边
+                x = Math.random() * this.worldWidth;
+                y = this.worldHeight + spawnMargin;
+                angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.5; // 向上
+                break;
+            case 3: // 左边
+                x = -spawnMargin;
+                y = Math.random() * this.worldHeight;
+                angle = 0 + (Math.random() - 0.5) * 0.5; // 向右
+                break;
         }
         
-        this.enemies.push(new Fish(x, y, size, 1 + Math.random() * 2, false));
-        let nextSpawn = 1500 - Math.min(800, this.score * 5);
-        nextSpawn = Math.max(700, nextSpawn);
+        const enemy = new Fish(x, y, size, 1.5 + Math.random() * 1.5, false, null, angle);
+        this.enemies.push(enemy);
+        
+        // 根据屏幕内鱼数量调整生成速度
+        let nextSpawn;
+        if (screenFish < minScreenFish) {
+            nextSpawn = 800; // 快速生成
+        } else {
+            nextSpawn = 2000 + Math.random() * 1000; // 正常生成
+        }
         setTimeout(() => this.spawnEnemy(), nextSpawn);
     }
 
@@ -920,11 +957,14 @@ class Game {
         this.player.targetY = this.mouseY;
         this.player.update(this.worldWidth, this.worldHeight, this.player);
 
-        // 更新敌人并移除超时的
+        // 更新敌人并移除超时或离开世界的
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
-            enemy.update(this.worldWidth, this.worldHeight, this.player);
-            if (enemy.shouldRemove()) this.enemies.splice(i, 1);
+            enemy.update(this.worldWidth, this.worldHeight, this.player, this.camera);
+            // 寿命结束或游出世界后移除
+            if (enemy.shouldRemove() || enemy.isLeaving) {
+                this.enemies.splice(i, 1);
+            }
         }
 
         this.checkCollisions();
