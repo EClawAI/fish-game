@@ -1,62 +1,43 @@
-// 大鱼吃小鱼游戏 - 完整版
+// 大鱼吃小鱼游戏 - 专业版
+// 修复了设计问题和程序 bug
 
-// 鱼类定义 - 12 种普通鱼 + 3 种特殊鱼
-const FISH_TYPES = [
-    // 小型鱼 (5-20)
-    { name: '小丑鱼', minSize: 5, maxSize: 12, color: '#FF6B6B', pattern: 'stripes', rarity: 'common' },
-    { name: '孔雀鱼', minSize: 12, maxSize: 18, color: '#FF9FF3', pattern: 'gradient', rarity: 'common' },
-    { name: '灯鱼', minSize: 18, maxSize: 25, color: '#54A0FF', pattern: 'glow', rarity: 'common' },
-    
-    // 中型鱼 (25-45)
-    { name: '神仙鱼', minSize: 25, maxSize: 32, color: '#48DBFB', pattern: 'elegant', rarity: 'common' },
-    { name: '蝴蝶鱼', minSize: 32, maxSize: 38, color: '#FFD93D', pattern: 'spots', rarity: 'common' },
-    { name: '鹦鹉鱼', minSize: 38, maxSize: 45, color: '#FF6B9D', pattern: 'colorful', rarity: 'common' },
-    
-    // 大型鱼 (45-65)
-    { name: '金枪鱼', minSize: 45, maxSize: 52, color: '#C8D6E5', pattern: 'streamline', rarity: 'common' },
-    { name: '鲨鱼', minSize: 52, maxSize: 60, color: '#576574', pattern: 'smooth', rarity: 'uncommon' },
-    { name: '魔鬼鱼', minSize: 60, maxSize: 65, color: '#8395A7', pattern: 'wing', rarity: 'uncommon' },
-    
-    // 巨型鱼 (65-80)
-    { name: '海豚', minSize: 65, maxSize: 72, color: '#0ABDE3', pattern: 'smart', rarity: 'rare' },
-    { name: '虎鲸', minSize: 72, maxSize: 78, color: '#222F3E', pattern: 'orca', rarity: 'rare' },
-    { name: '蓝鲸', minSize: 78, maxSize: 80, color: '#1E3799', pattern: 'whale', rarity: 'legendary' }
-];
-
-// 特殊鱼类（稀有）
-const SPECIAL_FISH = {
-    golden: {
-        name: '🌟 黄金鱼',
-        size: 25,
-        color: '#FFD700',
-        pattern: 'golden',
-        rarity: 'special',
-        points: 500,
-        speed: 4,
-        spawnChance: 0.02 // 2% 概率
-    },
-    rainbow: {
-        name: '🌈 彩虹鱼',
-        size: 30,
-        color: 'rainbow',
-        pattern: 'rainbow',
-        rarity: 'special',
-        points: 300,
-        speed: 3.5,
-        spawnChance: 0.03 // 3% 概率
-    },
-    ghost: {
-        name: '👻 幽灵鱼',
-        size: 35,
-        color: '#A8E6CF',
-        pattern: 'ghost',
-        rarity: 'special',
-        points: 200,
-        speed: 2,
-        spawnChance: 0.04 // 4% 概率
-    }
+// ==================== 游戏配置 ====================
+const CONFIG = {
+    WORLD_SCALE: 3,              // 世界倍数 (3x3=9 屏幕)
+    EDGE_MARGIN: 0.15,           // 屏幕边缘触发区域 (15%)
+    CAMERA_SPEED: 0.03,          // 摄像机移动速度
+    MAX_PARTICLES: 100,          // 最大粒子数（性能优化）
+    MAX_ENEMIES_BASE: 25,        // 基础最大敌人数量
+    MAX_ENEMIES_PER_SCORE: 5,    // 每 100 分增加的敌人上限
+    SPECIAL_SPAWN_INTERVAL: 20000, // 特殊鱼生成间隔 (20 秒)
+    PLAYER_START_SIZE: 15,       // 玩家初始大小
+    PLAYER_START_SPEED: 3,       // 玩家初始速度
+    GROWTH_RATE: 0.15,           // 成长系数
 };
 
+// ==================== 鱼类定义 ====================
+const FISH_TYPES = [
+    { name: '小丑鱼', minSize: 5, maxSize: 12, color: '#FF6B6B', pattern: 'stripes' },
+    { name: '孔雀鱼', minSize: 12, maxSize: 18, color: '#FF9FF3', pattern: 'gradient' },
+    { name: '灯鱼', minSize: 18, maxSize: 25, color: '#54A0FF', pattern: 'glow' },
+    { name: '神仙鱼', minSize: 25, maxSize: 32, color: '#48DBFB', pattern: 'elegant' },
+    { name: '蝴蝶鱼', minSize: 32, maxSize: 38, color: '#FFD93D', pattern: 'spots' },
+    { name: '鹦鹉鱼', minSize: 38, maxSize: 45, color: '#FF6B9D', pattern: 'colorful' },
+    { name: '金枪鱼', minSize: 45, maxSize: 52, color: '#C8D6E5', pattern: 'streamline' },
+    { name: '鲨鱼', minSize: 52, maxSize: 60, color: '#576574', pattern: 'smooth' },
+    { name: '魔鬼鱼', minSize: 60, maxSize: 65, color: '#8395A7', pattern: 'wing' },
+    { name: '海豚', minSize: 65, maxSize: 72, color: '#0ABDE3', pattern: 'smart' },
+    { name: '虎鲸', minSize: 72, maxSize: 78, color: '#222F3E', pattern: 'orca' },
+    { name: '蓝鲸', minSize: 78, maxSize: 80, color: '#1E3799', pattern: 'whale' }
+];
+
+const SPECIAL_FISH = {
+    golden: { name: '🌟 黄金鱼', size: 25, color: '#FFD700', points: 500, speed: 4 },
+    rainbow: { name: '🌈 彩虹鱼', size: 30, color: 'rainbow', points: 300, speed: 3.5 },
+    ghost: { name: '👻 幽灵鱼', size: 35, color: '#A8E6CF', points: 200, speed: 2 }
+};
+
+// ==================== 鱼类 ====================
 class Fish {
     constructor(x, y, size, speed, isPlayer = false, specialType = null) {
         this.x = x;
@@ -75,81 +56,60 @@ class Fish {
         this.glowAngle = 0;
         this.changeDirTimer = 0;
         this.changeDirInterval = 60 + Math.random() * 60;
-        
-        // 特殊鱼类
         this.specialType = specialType;
         this.isSpecial = specialType !== null;
         this.rainbowAngle = 0;
-        
-        // 生存周期
         this.birthTime = Date.now();
         this.maxLifetime = this.isSpecial ? 30000 : 15000 + Math.random() * 15000;
         this.age = 0;
-        this.isDying = false;
-        
-        // 音效
-        this.eatenSound = null;
+        this.lastEvolutionSize = size; // 记录上次进化时的大小
     }
 
     getFishType() {
-        if (this.specialType) {
-            return SPECIAL_FISH[this.specialType];
-        }
+        if (this.specialType) return SPECIAL_FISH[this.specialType];
         for (let type of FISH_TYPES) {
-            if (this.size >= type.minSize && this.size < type.maxSize) {
-                return type;
-            }
+            if (this.size >= type.minSize && this.size < type.maxSize) return type;
         }
         return FISH_TYPES[FISH_TYPES.length - 1];
     }
 
     randomColor() {
-        if (this.specialType) {
-            return SPECIAL_FISH[this.specialType].color;
-        }
-        if (this.fishType) {
-            return this.fishType.color;
-        }
-        return '#4ECDC4';
+        if (this.specialType) return SPECIAL_FISH[this.specialType].color;
+        return this.fishType ? this.fishType.color : '#4ECDC4';
     }
 
-    update(canvasWidth, canvasHeight, player) {
+    // 检查是否进化
+    checkEvolution() {
+        const oldType = this.fishType;
+        this.fishType = this.getFishType();
+        return oldType !== this.fishType && this.isPlayer;
+    }
+
+    update(worldWidth, worldHeight, player) {
         this.age = Date.now() - this.birthTime;
         
-        if (this.age > this.maxLifetime * 0.8) {
-            this.isDying = true;
-        }
-        
-        // 彩虹鱼颜色变化
-        if (this.specialType === 'rainbow') {
-            this.rainbowAngle += 0.05;
-        }
-        
         if (this.isPlayer) {
-            // 玩家直接移动到鼠标位置（带平滑）
             const dx = player.targetX - this.x;
             const dy = player.targetY - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
             if (dist > 10) {
-                // 快速跟随鼠标
                 const moveSpeed = Math.min(dist * 0.15, this.speed * 3);
                 this.x += (dx / dist) * moveSpeed;
                 this.y += (dy / dist) * moveSpeed;
             } else {
-                // 接近鼠标时微调
                 this.x += dx * 0.1;
                 this.y += dy * 0.1;
             }
             
-            // 根据移动方向设置朝向
-            if (Math.abs(dx) > 5) {
-                this.direction = dx > 0 ? 1 : -1;
-            }
+            if (Math.abs(dx) > 5) this.direction = dx > 0 ? 1 : -1;
             this.glowAngle += 0.1;
+            
+            // 边界限制
+            this.x = Math.max(this.size, Math.min(worldWidth - this.size, this.x));
+            this.y = Math.max(this.size, Math.min(worldHeight - this.size, this.y));
         } else {
             this.changeDirTimer++;
-            
             const ageFactor = Math.max(0.3, 1 - (this.age / this.maxLifetime) * 0.5);
             
             if (this.changeDirTimer > this.changeDirInterval) {
@@ -160,8 +120,7 @@ class Fish {
             
             if (player && Math.abs(player.x - this.x) < 200 && Math.abs(player.y - this.y) < 200) {
                 if (player.size > this.size) {
-                    const escapeAngle = Math.atan2(player.y - this.y, player.x - this.x) + Math.PI;
-                    this.targetAngle = escapeAngle;
+                    this.targetAngle = Math.atan2(player.y - this.y, player.x - this.x) + Math.PI;
                 }
             }
             
@@ -172,24 +131,14 @@ class Fish {
             
             this.x += Math.cos(this.angle) * this.speed * ageFactor;
             this.y += Math.sin(this.angle) * this.speed * ageFactor;
-            
             this.direction = Math.cos(this.angle) > 0 ? 1 : -1;
             
+            // 世界边界反弹
             const margin = this.size * 2;
-            if (this.x < -margin) {
-                this.x = canvasWidth + margin;
-                this.targetAngle = Math.random() * Math.PI - Math.PI / 2;
-            } else if (this.x > canvasWidth + margin) {
-                this.x = -margin;
-                this.targetAngle = Math.random() * Math.PI + Math.PI / 2;
-            }
-            if (this.y < -margin) {
-                this.y = canvasHeight + margin;
-                this.targetAngle = Math.random() * Math.PI;
-            } else if (this.y > canvasHeight + margin) {
-                this.y = -margin;
-                this.targetAngle = Math.random() * Math.PI + Math.PI;
-            }
+            if (this.x < -margin) { this.x = worldWidth + margin; this.targetAngle = Math.PI / 2; }
+            else if (this.x > worldWidth + margin) { this.x = -margin; this.targetAngle = -Math.PI / 2; }
+            if (this.y < -margin) { this.y = worldHeight + margin; this.targetAngle = 0; }
+            else if (this.y > worldHeight + margin) { this.y = -margin; this.targetAngle = Math.PI; }
         }
 
         this.tailAngle += this.tailSpeed;
@@ -199,19 +148,18 @@ class Fish {
         return this.age > this.maxLifetime;
     }
 
-    draw(ctx, cameraScale = 1) {
+    draw(ctx) {
         ctx.save();
-        ctx.globalAlpha = 1.0; // 确保每次绘制前透明度为 1
+        ctx.globalAlpha = 1.0;
         ctx.translate(this.x, this.y);
         
         const drawAngle = this.isPlayer ? 0 : this.angle;
         ctx.rotate(drawAngle);
         
-        if (this.isSpecial) {
-            this.drawSpecialEffect(ctx);
-        }
+        if (this.isSpecial) this.drawSpecialEffect(ctx);
         
         if (this.isPlayer) {
+            // 玩家光环
             const glowSize = this.size * 2.5 + Math.sin(this.glowAngle) * 3;
             const gradient = ctx.createRadialGradient(0, 0, this.size * 1.5, 0, 0, glowSize);
             gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
@@ -222,8 +170,9 @@ class Fish {
             ctx.fillStyle = gradient;
             ctx.fill();
             
+            // 玩家标签
             ctx.rotate(-drawAngle);
-            ctx.globalAlpha = 1.0; // 绘制文字前重置透明度
+            ctx.globalAlpha = 1.0;
             ctx.fillStyle = 'white';
             ctx.font = 'bold 14px PingFang SC';
             ctx.textAlign = 'center';
@@ -245,6 +194,7 @@ class Fish {
 
     drawSpecialEffect(ctx) {
         const time = Date.now() / 200;
+        ctx.save();
         
         if (this.specialType === 'golden') {
             const gradient = ctx.createRadialGradient(0, 0, this.size, 0, 0, this.size * 2.5);
@@ -270,34 +220,28 @@ class Fish {
             ctx.beginPath();
             ctx.arc(0, 0, this.size * 1.8, 0, Math.PI * 2);
             ctx.stroke();
-            ctx.globalAlpha = 1.0;
         } else if (this.specialType === 'ghost') {
             ctx.globalAlpha = 0.6 + Math.sin(time) * 0.2;
-            
             if (Math.random() < 0.1) {
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
                 ctx.beginPath();
                 ctx.arc(this.size * 2, -this.size * 2, 5, 0, Math.PI * 2);
                 ctx.fill();
             }
-            ctx.globalAlpha = 1.0;
         }
+        
+        ctx.restore();
+        ctx.globalAlpha = 1.0;
     }
 
     drawFishBody(ctx) {
         ctx.beginPath();
         ctx.ellipse(0, 0, this.size * 1.5, this.size, 0, 0, Math.PI * 2);
-        
-        if (this.specialType === 'rainbow') {
-            const hue = (this.rainbowAngle * 50) % 360;
-            ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
-        } else {
-            ctx.fillStyle = this.fishType ? this.fishType.color : this.color;
-        }
+        ctx.fillStyle = this.fishType ? this.fishType.color : this.color;
         ctx.fill();
         
         const gradient = ctx.createRadialGradient(-this.size * 0.5, -this.size * 0.3, 0, 0, 0, this.size);
-        const baseColor = this.specialType === 'rainbow' ? `hsl(${(this.rainbowAngle * 50) % 360}, 80%, 60%)` : (this.fishType ? this.fishType.color : this.color);
+        const baseColor = this.fishType ? this.fishType.color : this.color;
         gradient.addColorStop(0, this.lightenColor(baseColor, 30));
         gradient.addColorStop(1, baseColor);
         ctx.fillStyle = gradient;
@@ -306,12 +250,10 @@ class Fish {
 
     drawFishPattern(ctx) {
         if (!this.fishType) return;
-        
         ctx.strokeStyle = this.lightenColor(this.fishType.color, 20);
         ctx.lineWidth = 2;
         
         if (this.specialType === 'golden') {
-            // 金色闪光
             ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
             for (let i = 0; i < 5; i++) {
                 ctx.beginPath();
@@ -345,20 +287,6 @@ class Fish {
                     ctx.fill();
                     ctx.shadowBlur = 0;
                     break;
-                case 'whale':
-                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                    for (let i = 0; i < 3; i++) {
-                        ctx.beginPath();
-                        ctx.ellipse(-this.size * 0.5 + i * this.size * 0.4, -this.size * 0.3, this.size * 0.2, this.size * 0.1, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                    break;
-                default:
-                    for (let i = -this.size; i < this.size; i += this.size * 0.3) {
-                        ctx.beginPath();
-                        ctx.arc(i, 0, this.size * 0.4, -Math.PI * 0.3, Math.PI * 0.3);
-                        ctx.stroke();
-                    }
             }
         }
     }
@@ -377,13 +305,13 @@ class Fish {
     drawFishFins(ctx) {
         ctx.beginPath();
         ctx.moveTo(-this.size * 0.5, -this.size * 0.8);
-        ctx.quadraticCurveTo(0, -this.size * (1.2 + this.size / 100), this.size * 0.5, -this.size * 0.8);
+        ctx.quadraticCurveTo(0, -this.size * 1.3, this.size * 0.5, -this.size * 0.8);
         ctx.fillStyle = this.fishType ? this.fishType.color : this.color;
         ctx.fill();
 
         ctx.beginPath();
         ctx.moveTo(-this.size * 0.3, this.size * 0.7);
-        ctx.lineTo(0, this.size * (0.9 + this.size / 150));
+        ctx.lineTo(0, this.size * 1.0);
         ctx.lineTo(this.size * 0.3, this.size * 0.7);
         ctx.fillStyle = this.fishType ? this.fishType.color : this.color;
         ctx.fill();
@@ -398,7 +326,6 @@ class Fish {
         ctx.arc(this.size * 0.9, -this.size * 0.3, this.size * 0.12, 0, Math.PI * 2);
         ctx.fillStyle = 'black';
         ctx.fill();
-        
         if (this.isPlayer) {
             ctx.beginPath();
             ctx.arc(this.size * 0.95, -this.size * 0.35, this.size * 0.05, 0, Math.PI * 2);
@@ -418,186 +345,15 @@ class Fish {
     }
 
     grow(amount) {
-        this.size = Math.min(80, this.size + amount * 3);
+        const oldSize = this.size;
+        this.size = Math.min(80, this.size + amount * CONFIG.GROWTH_RATE);
         this.speed = 3 + (20 / this.size);
         this.fishType = this.getFishType();
+        return oldSize !== this.size;
     }
 }
 
-// 音效管理器
-class SoundManager {
-    constructor() {
-        this.audioContext = null;
-        this.bgmPlaying = false;
-        this.bgmOscillators = [];
-        this.enabled = true;
-    }
-
-    init() {
-        try {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        } catch (e) {
-            this.enabled = false;
-        }
-    }
-
-    playEatSound(size) {
-        if (!this.enabled || !this.audioContext) return;
-        
-        const osc = this.audioContext.createOscillator();
-        const gain = this.audioContext.createGain();
-        
-        osc.connect(gain);
-        gain.connect(this.audioContext.destination);
-        
-        // 根据鱼大小改变音调
-        osc.frequency.value = 800 - size * 5;
-        osc.type = 'sine';
-        
-        gain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
-        
-        osc.start(this.audioContext.currentTime);
-        osc.stop(this.audioContext.currentTime + 0.1);
-    }
-
-    playSpecialSound() {
-        if (!this.enabled || !this.audioContext) return;
-        
-        // 特殊鱼类音效（和弦）
-        const notes = [523.25, 659.25, 783.99]; // C大调和弦
-        
-        notes.forEach((freq, i) => {
-            setTimeout(() => {
-                const osc = this.audioContext.createOscillator();
-                const gain = this.audioContext.createGain();
-                
-                osc.connect(gain);
-                gain.connect(this.audioContext.destination);
-                
-                osc.frequency.value = freq;
-                osc.type = 'sine';
-                
-                gain.gain.setValueAtTime(0.2, this.audioContext.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
-                
-                osc.start(this.audioContext.currentTime);
-                osc.stop(this.audioContext.currentTime + 0.3);
-            }, i * 100);
-        });
-    }
-
-    playGameOverSound() {
-        if (!this.enabled || !this.audioContext) return;
-        
-        const notes = [392, 370, 349, 311]; // 下降音阶
-        
-        notes.forEach((freq, i) => {
-            setTimeout(() => {
-                const osc = this.audioContext.createOscillator();
-                const gain = this.audioContext.createGain();
-                
-                osc.connect(gain);
-                gain.connect(this.audioContext.destination);
-                
-                osc.frequency.value = freq;
-                osc.type = 'triangle';
-                
-                gain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.4);
-                
-                osc.start(this.audioContext.currentTime);
-                osc.stop(this.audioContext.currentTime + 0.4);
-            }, i * 150);
-        });
-    }
-
-    startBGM() {
-        if (!this.enabled || !this.audioContext || this.bgmPlaying) return;
-        
-        this.bgmPlaying = true;
-        const now = this.audioContext.currentTime;
-        
-        // 创建海浪声（粉红噪声模拟）
-        this.bgmGain = this.audioContext.createGain();
-        this.bgmGain.gain.value = 0.05;
-        this.bgmGain.connect(this.audioContext.destination);
-        
-        // 使用多个振荡器模拟海浪
-        const waveFreqs = [80, 120, 180, 250, 350];
-        
-        this.bgmOscillators = waveFreqs.map((freq, i) => {
-            const osc = this.audioContext.createOscillator();
-            const gain = this.audioContext.createGain();
-            
-            osc.frequency.value = freq;
-            osc.type = 'sine';
-            
-            // 缓慢的音量变化模拟海浪起伏
-            const lfo = this.audioContext.createOscillator();
-            lfo.frequency.value = 0.1 + i * 0.05; // 非常慢的调制
-            const lfoGain = this.audioContext.createGain();
-            lfoGain.gain.value = 0.3;
-            
-            lfo.connect(lfoGain);
-            lfoGain.connect(gain.gain);
-            
-            gain.gain.value = 0.02;
-            
-            osc.connect(gain);
-            gain.connect(this.bgmGain);
-            
-            osc.start(now);
-            lfo.start(now);
-            
-            return { osc, lfo, gain };
-        });
-        
-        // 添加低频隆隆声（深海效果）
-        const deepOsc = this.audioContext.createOscillator();
-        const deepGain = this.audioContext.createGain();
-        deepOsc.frequency.value = 40;
-        deepOsc.type = 'sine';
-        deepGain.gain.value = 0.015;
-        deepOsc.connect(deepGain);
-        deepGain.connect(this.bgmGain);
-        deepOsc.start(now);
-        
-        this.bgmOscillators.push({ osc: deepOsc, lfo: null, gain: deepGain });
-    }
-
-    stopBGM() {
-        if (!this.audioContext) return;
-        
-        const now = this.audioContext.currentTime;
-        
-        if (this.bgmGain) {
-            this.bgmGain.gain.exponentialRampToValueAtTime(0.001, now + 1);
-        }
-        
-        this.bgmOscillators.forEach(({ osc, lfo }) => {
-            try {
-                osc.stop(now + 1);
-                if (lfo) lfo.stop(now + 1);
-            } catch (e) {}
-        });
-        
-        this.bgmPlaying = false;
-        this.bgmOscillators = [];
-        this.bgmGain = null;
-    }
-
-    toggle() {
-        this.enabled = !this.enabled;
-        if (this.enabled) {
-            this.startBGM();
-        } else {
-            this.stopBGM();
-        }
-        return this.enabled;
-    }
-}
-
+// ==================== 粒子系统 ====================
 class Particle {
     constructor(x, y, color) {
         this.x = x;
@@ -618,15 +374,14 @@ class Particle {
     }
 
     draw(ctx) {
-        ctx.globalAlpha = this.life;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fillStyle = this.color;
         ctx.fill();
-        ctx.restore(); // 已在 draw 函数末尾恢复
     }
 }
 
+// ==================== 气泡 ====================
 class Bubble {
     constructor(canvasWidth, canvasHeight) {
         this.canvasWidth = canvasWidth;
@@ -659,6 +414,160 @@ class Bubble {
     }
 }
 
+// ==================== 音效管理器 ====================
+class SoundManager {
+    constructor() {
+        this.audioContext = null;
+        this.bgmPlaying = false;
+        this.bgmGain = null;
+        this.bgmOscillators = [];
+        this.enabled = true;
+    }
+
+    init() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                this.audioContext = new AudioContext();
+            } else {
+                this.enabled = false;
+            }
+        } catch (e) {
+            this.enabled = false;
+        }
+    }
+
+    playEatSound(size) {
+        if (!this.enabled || !this.audioContext) return;
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.audioContext.destination);
+        osc.frequency.value = 800 - size * 5;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.15, this.audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.1);
+        osc.start(this.audioContext.currentTime);
+        osc.stop(this.audioContext.currentTime + 0.1);
+    }
+
+    playSpecialSound() {
+        if (!this.enabled || !this.audioContext) return;
+        const notes = [523.25, 659.25, 783.99];
+        const now = this.audioContext.currentTime;
+        notes.forEach((freq, i) => {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(this.audioContext.destination);
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.1, now + i * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.3);
+            osc.start(now + i * 0.1);
+            osc.stop(now + i * 0.1 + 0.3);
+        });
+    }
+
+    playEvolutionSound() {
+        if (!this.enabled || !this.audioContext) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        const now = this.audioContext.currentTime;
+        notes.forEach((freq, i) => {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(this.audioContext.destination);
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.15, now + i * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.4);
+            osc.start(now + i * 0.1);
+            osc.stop(now + i * 0.1 + 0.4);
+        });
+    }
+
+    playGameOverSound() {
+        if (!this.enabled || !this.audioContext) return;
+        const notes = [392, 370, 349, 311];
+        const now = this.audioContext.currentTime;
+        notes.forEach((freq, i) => {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(this.audioContext.destination);
+            osc.frequency.value = freq;
+            osc.type = 'triangle';
+            gain.gain.setValueAtTime(0.15, now + i * 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.4);
+            osc.start(now + i * 0.15);
+            osc.stop(now + i * 0.15 + 0.4);
+        });
+    }
+
+    startBGM() {
+        if (!this.enabled || !this.audioContext || this.bgmPlaying) return;
+        this.bgmPlaying = true;
+        const now = this.audioContext.currentTime;
+        
+        this.bgmGain = this.audioContext.createGain();
+        this.bgmGain.gain.value = 0.05;
+        this.bgmGain.connect(this.audioContext.destination);
+        
+        const waveFreqs = [80, 120, 180, 250, 350];
+        this.bgmOscillators = waveFreqs.map((freq, i) => {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            const lfo = this.audioContext.createOscillator();
+            lfo.frequency.value = 0.1 + i * 0.05;
+            const lfoGain = this.audioContext.createGain();
+            lfoGain.gain.value = 0.3;
+            lfo.connect(lfoGain);
+            lfoGain.connect(gain.gain);
+            gain.gain.value = 0.02;
+            osc.connect(gain);
+            gain.connect(this.bgmGain);
+            osc.start(now);
+            lfo.start(now);
+            return { osc, lfo, gain };
+        });
+        
+        const deepOsc = this.audioContext.createOscillator();
+        const deepGain = this.audioContext.createGain();
+        deepOsc.frequency.value = 40;
+        deepOsc.type = 'sine';
+        deepGain.gain.value = 0.015;
+        deepOsc.connect(deepGain);
+        deepGain.connect(this.bgmGain);
+        deepOsc.start(now);
+        this.bgmOscillators.push({ osc: deepOsc, lfo: null, gain: deepGain });
+    }
+
+    stopBGM() {
+        if (!this.audioContext) return;
+        const now = this.audioContext.currentTime;
+        if (this.bgmGain) {
+            this.bgmGain.gain.exponentialRampToValueAtTime(0.001, now + 1);
+        }
+        this.bgmOscillators.forEach(({ osc, lfo }) => {
+            try { osc.stop(now + 1); if (lfo) lfo.stop(now + 1); } catch (e) {}
+        });
+        this.bgmPlaying = false;
+        this.bgmOscillators = [];
+        this.bgmGain = null;
+    }
+
+    toggle() {
+        this.enabled = !this.enabled;
+        if (this.enabled) this.startBGM();
+        else this.stopBGM();
+        return this.enabled;
+    }
+}
+
+// ==================== 游戏主类 ====================
 class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -675,39 +584,21 @@ class Game {
         this.particles = [];
         this.bubbles = [];
         this.score = 0;
+        this.highScore = localStorage.getItem('fishGameHighScore') || 0;
         this.isRunning = false;
         this.mouseX = 0;
         this.mouseY = 0;
-        
-        // 游戏世界大小：3x3 屏幕 = 9 个屏幕
         this.worldWidth = 0;
         this.worldHeight = 0;
-        
-        this.camera = {
-            x: 0,
-            y: 0,
-            scale: 1,
-            targetScale: 1
-        };
-        
+        this.camera = { x: 0, y: 0, scale: 1, targetScale: 1 };
         this.soundManager = new SoundManager();
-        this.specialSpawnTimer = 0;
+        this.specialTimer = null;
+        this.evolutionNotices = [];
+        this.lastFishType = null;
 
         this.init();
         this.resize();
-        
         window.addEventListener('resize', () => this.resize());
-    }
-
-    resize() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-        this.mouseX = this.canvas.width / 2;
-        this.mouseY = this.canvas.height / 2;
-        
-        // 游戏世界 = 3x3 屏幕
-        this.worldWidth = this.canvas.width * 3;
-        this.worldHeight = this.canvas.height * 3;
     }
 
     init() {
@@ -715,28 +606,30 @@ class Game {
             this.bubbles.push(new Bubble(this.canvas.width, this.canvas.height));
         }
 
-        // 全局鼠标监听（即使移出 canvas 也能跟踪）
         document.addEventListener('mousemove', (e) => {
+            e.preventDefault();
             const rect = this.canvas.getBoundingClientRect();
-            this.mouseX = e.clientX - rect.left;
-            this.mouseY = e.clientY - rect.top;
-            
-            // 限制在画布范围内
-            this.mouseX = Math.max(0, Math.min(this.canvas.width, this.mouseX));
-            this.mouseY = Math.max(0, Math.min(this.canvas.height, this.mouseY));
+            this.mouseX = Math.max(0, Math.min(this.canvas.width, e.clientX - rect.left));
+            this.mouseY = Math.max(0, Math.min(this.canvas.height, e.clientY - rect.top));
         });
 
         this.canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const rect = this.canvas.getBoundingClientRect();
-            this.mouseX = e.touches[0].clientX - rect.left;
-            this.mouseY = e.touches[0].clientY - rect.top;
-            
-            this.mouseX = Math.max(0, Math.min(this.canvas.width, this.mouseX));
-            this.mouseY = Math.max(0, Math.min(this.canvas.height, this.mouseY));
+            this.mouseX = Math.max(0, Math.min(this.canvas.width, e.touches[0].clientX - rect.left));
+            this.mouseY = Math.max(0, Math.min(this.canvas.height, e.touches[0].clientY - rect.top));
         });
         
         this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.mouseX = this.canvas.width / 2;
+        this.mouseY = this.canvas.height / 2;
+        this.worldWidth = this.canvas.width * CONFIG.WORLD_SCALE;
+        this.worldHeight = this.canvas.height * CONFIG.WORLD_SCALE;
     }
 
     updateCamera() {
@@ -744,80 +637,56 @@ class Game {
         
         const baseScale = 1;
         const minScale = 0.4;
-        this.camera.targetScale = baseScale - (this.player.size - 15) / 65 * (baseScale - minScale);
+        this.camera.targetScale = baseScale - (this.player.size - CONFIG.PLAYER_START_SIZE) / 65 * (baseScale - minScale);
         this.camera.targetScale = Math.max(minScale, Math.min(baseScale, this.camera.targetScale));
         this.camera.scale += (this.camera.targetScale - this.camera.scale) * 0.05;
         
-        // 基于鼠标位置移动摄像机
-        const edgeMargin = this.canvas.width * 0.15; // 屏幕边缘 15% 区域
-        const moveSpeed = 0.03; // 摄像机移动速度
-        
-        // 检测鼠标是否在屏幕边缘
+        const edgeMargin = this.canvas.width * CONFIG.EDGE_MARGIN;
         let targetX = this.camera.x;
         let targetY = this.camera.y;
         
-        // 鼠标在左边缘 → 摄像机向左移动
-        if (this.mouseX < edgeMargin) {
-            targetX += (edgeMargin - this.mouseX) * moveSpeed;
-        }
-        // 鼠标在右边缘 → 摄像机向右移动
-        else if (this.mouseX > this.canvas.width - edgeMargin) {
-            targetX -= (this.mouseX - (this.canvas.width - edgeMargin)) * moveSpeed;
-        }
+        if (this.mouseX < edgeMargin) targetX += (edgeMargin - this.mouseX) * CONFIG.CAMERA_SPEED;
+        else if (this.mouseX > this.canvas.width - edgeMargin) targetX -= (this.mouseX - (this.canvas.width - edgeMargin)) * CONFIG.CAMERA_SPEED;
+        if (this.mouseY < edgeMargin) targetY += (edgeMargin - this.mouseY) * CONFIG.CAMERA_SPEED;
+        else if (this.mouseY > this.canvas.height - edgeMargin) targetY -= (this.mouseY - (this.canvas.height - edgeMargin)) * CONFIG.CAMERA_SPEED;
         
-        // 鼠标在上边缘 → 摄像机向上移动
-        if (this.mouseY < edgeMargin) {
-            targetY += (edgeMargin - this.mouseY) * moveSpeed;
-        }
-        // 鼠标在下边缘 → 摄像机向下移动
-        else if (this.mouseY > this.canvas.height - edgeMargin) {
-            targetY -= (this.mouseY - (this.canvas.height - edgeMargin)) * moveSpeed;
-        }
-        
-        // 平滑移动
         this.camera.x += (targetX - this.camera.x) * 0.1;
         this.camera.y += (targetY - this.camera.y) * 0.1;
         
-        // 限制摄像机在世界范围内
         const maxX = this.worldWidth / 2 - this.canvas.width / 2;
         const maxY = this.worldHeight / 2 - this.canvas.height / 2;
-        const minX = -maxX;
-        const minY = -maxY;
-        
-        this.camera.x = Math.max(minX, Math.min(maxX, this.camera.x));
-        this.camera.y = Math.max(minY, Math.min(maxY, this.camera.y));
+        this.camera.x = Math.max(-maxX, Math.min(maxX, this.camera.x));
+        this.camera.y = Math.max(-maxY, Math.min(maxY, this.camera.y));
     }
 
     start() {
-        try {
-            this.soundManager.init();
-        } catch (e) {
-            console.log('Audio init failed:', e);
-        }
+        this.soundManager.init();
         
-        // 玩家从世界中心开始
-        this.player = new Fish(this.worldWidth / 2, this.worldHeight / 2, 15, 3, true);
+        this.player = new Fish(this.worldWidth / 2, this.worldHeight / 2, CONFIG.PLAYER_START_SIZE, CONFIG.PLAYER_START_SPEED, true);
         this.player.targetX = this.mouseX;
         this.player.targetY = this.mouseY;
+        this.lastFishType = this.player.fishType;
         this.enemies = [];
         this.particles = [];
+        this.evolutionNotices = [];
         this.score = 0;
         this.isRunning = true;
         this.camera.scale = 1;
         this.camera.x = 0;
         this.camera.y = 0;
-        this.specialSpawnTimer = 0;
+        
+        // 清理旧的定时器
+        if (this.specialTimer) {
+            clearInterval(this.specialTimer);
+            this.specialTimer = null;
+        }
         
         this.startScreen.classList.add('hidden');
         this.gameOverScreen.classList.add('hidden');
         
         setTimeout(() => {
-            try {
-                if (this.soundManager.enabled && this.isRunning) {
-                    this.soundManager.startBGM();
-                }
-            } catch (e) {
-                console.log('BGM start failed:', e);
+            if (this.soundManager.enabled && this.isRunning) {
+                this.soundManager.startBGM();
             }
         }, 500);
         
@@ -825,24 +694,44 @@ class Game {
         this.loop();
         
         for (let i = 0; i < 5; i++) {
-            setTimeout(() => {
-                if (this.isRunning) {
-                    this.spawnInitialEnemy();
-                }
-            }, i * 400);
+            setTimeout(() => { if (this.isRunning) this.spawnInitialEnemy(); }, i * 400);
         }
         
         this.spawnEnemy();
-        this.spawnSpecialFish();
+        this.startSpecialSpawner();
+    }
+
+    startSpecialSpawner() {
+        this.specialTimer = setInterval(() => {
+            if (!this.isRunning) return;
+            const rand = Math.random();
+            let specialType = null;
+            if (rand < 0.02) specialType = 'golden';
+            else if (rand < 0.05) specialType = 'rainbow';
+            else if (rand < 0.09) specialType = 'ghost';
+            
+            if (specialType) {
+                const config = SPECIAL_FISH[specialType];
+                const edge = Math.floor(Math.random() * 4);
+                let x, y;
+                switch(edge) {
+                    case 0: x = Math.random() * this.worldWidth; y = -50; break;
+                    case 1: x = this.worldWidth + 50; y = Math.random() * this.worldHeight; break;
+                    case 2: x = Math.random() * this.worldWidth; y = this.worldHeight + 50; break;
+                    case 3: x = -50; y = Math.random() * this.worldHeight; break;
+                }
+                const special = new Fish(x, y, config.size, config.speed, false, specialType);
+                this.enemies.push(special);
+                this.showEvolutionNotice(`✨ ${config.name} 出现了！`);
+            }
+        }, CONFIG.SPECIAL_SPAWN_INTERVAL);
     }
 
     spawnInitialEnemy() {
         const size = 8 + Math.random() * 7;
-        // 在玩家附近生成
         const x = this.player.x + (Math.random() - 0.5) * this.canvas.width;
         const y = this.player.y + (Math.random() - 0.5) * this.canvas.height;
-        const enemy = new Fish(x, y, size, 1 + Math.random() * 2, false);
-        this.enemies.push(enemy);
+        this.enemies.push(new Fish(x, y, size, 1 + Math.random() * 2, false));
     }
 
     restart() {
@@ -852,14 +741,13 @@ class Game {
     spawnEnemy() {
         if (!this.isRunning) return;
 
-        const maxEnemies = 20 + Math.floor(this.score / 100) * 5;
+        const maxEnemies = CONFIG.MAX_ENEMIES_BASE + Math.floor(this.score / 100) * CONFIG.MAX_ENEMIES_PER_SCORE;
         if (this.enemies.length >= maxEnemies) {
             setTimeout(() => this.spawnEnemy(), 2000);
             return;
         }
 
-        const playerSize = this.player ? this.player.size : 15;
-        
+        const playerSize = this.player ? this.player.size : CONFIG.PLAYER_START_SIZE;
         let size;
         if (Math.random() < 0.7) {
             size = Math.random() * (playerSize * 0.6) + playerSize * 0.3;
@@ -872,101 +760,22 @@ class Game {
         let x, y;
         const edge = Math.floor(Math.random() * 4);
         switch(edge) {
-            case 0: x = Math.random() * this.canvas.width; y = -50; break;
-            case 1: x = this.canvas.width + 50; y = Math.random() * this.canvas.height; break;
-            case 2: x = Math.random() * this.canvas.width; y = this.canvas.height + 50; break;
-            case 3: x = -50; y = Math.random() * this.canvas.height; break;
+            case 0: x = Math.random() * this.worldWidth; y = -50; break;
+            case 1: x = this.worldWidth + 50; y = Math.random() * this.worldHeight; break;
+            case 2: x = Math.random() * this.worldWidth; y = this.worldHeight + 50; break;
+            case 3: x = -50; y = Math.random() * this.worldHeight; break;
         }
         
-        const enemy = new Fish(x, y, size, 1 + Math.random() * 2, false);
-        this.enemies.push(enemy);
-
+        this.enemies.push(new Fish(x, y, size, 1 + Math.random() * 2, false));
         let nextSpawn = 1500 - Math.min(800, this.score * 5);
         nextSpawn = Math.max(700, nextSpawn);
-        
         setTimeout(() => this.spawnEnemy(), nextSpawn);
     }
 
-    spawnSpecialFish() {
-        if (!this.isRunning) return;
-        
-        // 每 30 秒尝试生成特殊鱼类
-        this.specialTimer = setInterval(() => {
-            if (!this.isRunning || this.enemies.length < 5) return;
-            
-            const rand = Math.random();
-            let specialType = null;
-            
-            if (rand < 0.02) {
-                specialType = 'golden';
-            } else if (rand < 0.05) {
-                specialType = 'rainbow';
-            } else if (rand < 0.09) {
-                specialType = 'ghost';
-            }
-            
-            if (specialType) {
-                const config = SPECIAL_FISH[specialType];
-                const edge = Math.floor(Math.random() * 4);
-                let x, y;
-                switch(edge) {
-                    case 0: x = Math.random() * this.canvas.width; y = -50; break;
-                    case 1: x = this.canvas.width + 50; y = Math.random() * this.canvas.height; break;
-                    case 2: x = Math.random() * this.canvas.width; y = this.canvas.height + 50; break;
-                    case 3: x = -50; y = Math.random() * this.canvas.height; break;
-                }
-                
-                const special = new Fish(x, y, config.size, config.speed, false, specialType);
-                this.enemies.push(special);
-                
-                // 特殊鱼生成提示
-                try {
-                    this.showSpecialNotice(config.name);
-                } catch (e) {
-                    console.log('Notice failed:', e);
-                }
-            }
-        }, 30000);
-    }
-
-    showSpecialNotice(name) {
-        const notice = document.createElement('div');
-        notice.textContent = `✨ ${name} 出现了！`;
-        notice.style.cssText = `
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 32px;
-            color: #FFD700;
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
-            pointer-events: none;
-            z-index: 300;
-            animation: fadeOut 2s forwards;
-        `;
-        document.body.appendChild(notice);
-        setTimeout(() => notice.remove(), 2000);
-    }
-
     createExplosion(x, y, color, isSpecial = false) {
-        const count = isSpecial ? 30 : 15;
+        const count = Math.min(CONFIG.MAX_PARTICLES / 2, isSpecial ? 30 : 15);
         for (let i = 0; i < count; i++) {
             this.particles.push(new Particle(x, y, color));
-        }
-    }
-
-    drawParticles() {
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            const p = this.particles[i];
-            p.update();
-            if (p.life <= 0) {
-                this.particles.splice(i, 1);
-            } else {
-                this.ctx.save();
-                this.ctx.globalAlpha = p.life;
-                p.draw(this.ctx);
-                this.ctx.restore();
-            }
         }
     }
 
@@ -979,15 +788,21 @@ class Game {
             
             if (dist < this.player.size + enemy.size) {
                 if (this.player.size > enemy.size * 1.1) {
-                    const points = enemy.isSpecial ? (SPECIAL_FISH[enemy.specialType]?.points || 100) : Math.floor(enemy.size);
+                    const points = enemy.isSpecial ? SPECIAL_FISH[enemy.specialType]?.points || 100 : Math.floor(enemy.size);
                     this.score += points;
-                    this.player.grow(enemy.size * 0.05);
+                    const grew = this.player.grow(enemy.size * 0.05);
                     this.createExplosion(enemy.x, enemy.y, enemy.color, enemy.isSpecial);
                     
                     if (enemy.isSpecial) {
                         this.soundManager.playSpecialSound();
                     } else {
                         this.soundManager.playEatSound(enemy.size);
+                    }
+                    
+                    // 检查进化
+                    if (this.player.checkEvolution() && grew) {
+                        this.showEvolutionNotice(`🎉 进化成 ${this.player.fishType.name}！`);
+                        this.soundManager.playEvolutionSound();
                     }
                     
                     this.enemies.splice(i, 1);
@@ -999,6 +814,10 @@ class Game {
         }
     }
 
+    showEvolutionNotice(text) {
+        this.evolutionNotices.push({ text, time: Date.now(), alpha: 1 });
+    }
+
     updateUI() {
         this.scoreEl.textContent = this.score;
         this.sizeEl.textContent = Math.floor(this.player.size);
@@ -1006,18 +825,26 @@ class Game {
 
     gameOver() {
         this.isRunning = false;
-        this.finalScoreEl.textContent = this.score;
-        try {
-            this.soundManager.playGameOverSound();
-            this.soundManager.stopBGM();
-        } catch (e) {
-            console.log('Sound error:', e);
+        
+        // 更新最高分
+        if (this.score > this.highScore) {
+            this.highScore = this.score;
+            localStorage.setItem('fishGameHighScore', this.highScore);
         }
+        
+        this.finalScoreEl.textContent = `${this.score} (最高：${this.highScore})`;
+        this.soundManager.playGameOverSound();
+        this.soundManager.stopBGM();
+        
+        if (this.specialTimer) {
+            clearInterval(this.specialTimer);
+            this.specialTimer = null;
+        }
+        
         this.gameOverScreen.classList.remove('hidden');
     }
 
     drawBackground() {
-        // 绘制世界背景（受摄像机影响）
         const gradient = this.ctx.createLinearGradient(0, 0, 0, this.worldHeight);
         gradient.addColorStop(0, '#006994');
         gradient.addColorStop(0.5, '#004d7a');
@@ -1025,11 +852,8 @@ class Game {
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, this.worldWidth, this.worldHeight);
 
-        // 海底（世界底部）
         const bottomY = this.worldHeight - 50;
         this.ctx.fillStyle = '#1a1a2e';
-        
-        // 绘制多个海底丘陵
         for (let i = 0; i < 6; i++) {
             const x = i * this.worldWidth / 5;
             this.ctx.beginPath();
@@ -1037,7 +861,6 @@ class Game {
             this.ctx.fill();
         }
 
-        // 海草（世界底部）
         this.ctx.fillStyle = '#2d5016';
         const grassCount = Math.floor(this.worldWidth / 100);
         for (let i = 0; i < grassCount; i++) {
@@ -1050,21 +873,33 @@ class Game {
             this.ctx.fill();
         }
         
-        // 绘制世界边界提示
+        // 世界边界
         this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(0, 0, this.worldWidth, this.worldHeight);
     }
 
-    drawFishTypeLegend() {
-        if (this.player && this.player.fishType) {
-            this.ctx.fillStyle = 'white';
-            this.ctx.font = 'bold 16px PingFang SC';
-            this.ctx.textAlign = 'left';
+    drawEvolutionNotices() {
+        const now = Date.now();
+        for (let i = this.evolutionNotices.length - 1; i >= 0; i--) {
+            const notice = this.evolutionNotices[i];
+            const age = now - notice.time;
+            
+            if (age > 3000) {
+                this.evolutionNotices.splice(i, 1);
+                continue;
+            }
+            
+            this.ctx.save();
+            notice.alpha = 1 - (age / 3000);
+            this.ctx.globalAlpha = notice.alpha;
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.font = 'bold 28px PingFang SC';
+            this.ctx.textAlign = 'center';
             this.ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            this.ctx.shadowBlur = 4;
-            this.ctx.fillText(`🐟 ${this.player.fishType.name}`, 20, 50);
-            this.ctx.shadowBlur = 0;
+            this.ctx.shadowBlur = 8;
+            this.ctx.fillText(notice.text, this.canvas.width / 2, 100 + i * 40);
+            this.ctx.restore();
         }
     }
 
@@ -1072,69 +907,70 @@ class Game {
         if (!this.isRunning) return;
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // 先绘制背景（不受摄像机影响）
         this.drawBackground();
-
         this.updateCamera();
 
         this.ctx.save();
         this.ctx.translate(this.camera.x, this.camera.y);
         this.ctx.scale(this.camera.scale, this.camera.scale);
 
-        this.bubbles.forEach(bubble => {
-            bubble.update();
-            bubble.draw(this.ctx);
-        });
+        this.bubbles.forEach(bubble => { bubble.update(); bubble.draw(this.ctx); });
 
         this.player.targetX = this.mouseX;
         this.player.targetY = this.mouseY;
         this.player.update(this.worldWidth, this.worldHeight, this.player);
 
+        // 更新敌人并移除超时的
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
             enemy.update(this.worldWidth, this.worldHeight, this.player);
-            
-            if (enemy.shouldRemove()) {
-                this.enemies.splice(i, 1);
-            }
+            if (enemy.shouldRemove()) this.enemies.splice(i, 1);
         }
 
         this.checkCollisions();
 
-        // 绘制敌人
+        // 绘制所有鱼（每条鱼独立保存/恢复状态）
         this.enemies.forEach(enemy => {
             this.ctx.save();
             this.ctx.globalAlpha = 1.0;
-            enemy.draw(this.ctx, 1);
+            enemy.draw(this.ctx);
             this.ctx.restore();
         });
         
-        // 绘制粒子（带透明度）
-        this.drawParticles();
+        // 绘制粒子
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.update();
+            if (p.life <= 0) {
+                this.particles.splice(i, 1);
+            } else {
+                this.ctx.save();
+                this.ctx.globalAlpha = p.life;
+                p.draw(this.ctx);
+                this.ctx.restore();
+            }
+        }
         
         // 绘制玩家
         this.ctx.save();
         this.ctx.globalAlpha = 1.0;
-        this.player.draw(this.ctx, 1);
+        this.player.draw(this.ctx);
         this.ctx.restore();
 
         this.ctx.restore();
 
-        this.drawFishTypeLegend();
+        // UI 绘制（不受摄像机影响）
+        this.drawEvolutionNotices();
 
         requestAnimationFrame(() => this.loop());
     }
 }
 
+// 启动游戏
 const game = new Game();
 
-// 添加 CSS 动画
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes fadeOut {
-        0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
-    }
-`;
-document.head.appendChild(style);
+// 按钮文字更新
+function toggleBGM() {
+    const enabled = game.soundManager.toggle();
+    document.getElementById('bgmBtn').textContent = enabled ? '🔊 音乐开' : '🔇 音乐关';
+}
