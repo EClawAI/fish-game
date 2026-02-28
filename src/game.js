@@ -654,45 +654,55 @@ class Game {
     }
 
     start() {
-        this.soundManager.init();
-        
-        this.player = new Fish(this.worldWidth / 2, this.worldHeight / 2, CONFIG.PLAYER_START_SIZE, CONFIG.PLAYER_START_SPEED, true);
-        this.player.targetX = this.mouseX;
-        this.player.targetY = this.mouseY;
-        this.lastFishType = this.player.fishType;
-        this.enemies = [];
-        this.particles = [];
-        this.evolutionNotices = [];
-        this.score = 0;
-        this.isRunning = true;
-        this.camera.scale = 1;
-        this.camera.x = 0;
-        this.camera.y = 0;
-        
-        // 清理旧的定时器
-        if (this.specialTimer) {
-            clearInterval(this.specialTimer);
-            this.specialTimer = null;
-        }
-        
-        this.startScreen.classList.add('hidden');
-        this.gameOverScreen.classList.add('hidden');
-        
-        setTimeout(() => {
-            if (this.soundManager.enabled && this.isRunning) {
-                this.soundManager.startBGM();
+        try {
+            this.soundManager.init();
+            
+            // 确保 worldWidth 和 worldHeight 已初始化
+            if (!this.worldWidth || !this.worldHeight) {
+                this.resize();
             }
-        }, 500);
-        
-        this.updateUI();
-        this.loop();
-        
-        for (let i = 0; i < 5; i++) {
-            setTimeout(() => { if (this.isRunning) this.spawnInitialEnemy(); }, i * 400);
+            
+            this.player = new Fish(this.worldWidth / 2, this.worldHeight / 2, CONFIG.PLAYER_START_SIZE, CONFIG.PLAYER_START_SPEED, true);
+            this.player.targetX = this.mouseX;
+            this.player.targetY = this.mouseY;
+            this.lastFishType = this.player.fishType;
+            this.enemies = [];
+            this.particles = [];
+            this.evolutionNotices = [];
+            this.score = 0;
+            this.isRunning = true;
+            this.camera.scale = 1;
+            this.camera.x = 0;
+            this.camera.y = 0;
+            
+            // 清理旧的定时器
+            if (this.specialTimer) {
+                clearInterval(this.specialTimer);
+                this.specialTimer = null;
+            }
+            
+            this.startScreen.classList.add('hidden');
+            this.gameOverScreen.classList.add('hidden');
+            
+            setTimeout(() => {
+                if (this.soundManager.enabled && this.isRunning) {
+                    this.soundManager.startBGM();
+                }
+            }, 500);
+            
+            this.updateUI();
+            this.loop();
+            
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => { if (this.isRunning) this.spawnInitialEnemy(); }, i * 400);
+            }
+            
+            this.spawnEnemy();
+            this.startSpecialSpawner();
+        } catch (e) {
+            console.error('Game start error:', e);
+            alert('游戏启动失败：' + e.message);
         }
-        
-        this.spawnEnemy();
-        this.startSpecialSpawner();
     }
 
     startSpecialSpawner() {
@@ -1009,8 +1019,11 @@ class Game {
 // 启动游戏
 const game = new Game();
 
-// 按钮文字更新
-function toggleBGM() {
+// 全局函数：按钮文字更新（暴露到 window 供 HTML onclick 调用）
+window.toggleBGM = function() {
     const enabled = game.soundManager.toggle();
-    document.getElementById('bgmBtn').textContent = enabled ? '🔊 音乐开' : '🔇 音乐关';
-}
+    const btn = document.getElementById('bgmBtn');
+    if (btn) {
+        btn.textContent = enabled ? '🔊 音乐开' : '🔇 音乐关';
+    }
+};
