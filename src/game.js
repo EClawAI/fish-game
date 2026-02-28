@@ -201,16 +201,8 @@ class Fish {
 
     draw(ctx, cameraScale = 1) {
         ctx.save();
-        
-        // 保存当前透明度
-        const savedAlpha = ctx.globalAlpha;
-        
-        // 老年鱼半透明
-        if (this.isDying && !this.isPlayer && !this.isSpecial) {
-            ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 100) * 0.2;
-        }
-        
         ctx.translate(this.x, this.y);
+        
         const drawAngle = this.isPlayer ? 0 : this.angle;
         ctx.rotate(drawAngle);
         
@@ -230,7 +222,6 @@ class Fish {
             ctx.fill();
             
             ctx.rotate(-drawAngle);
-            ctx.globalAlpha = 1;
             ctx.fillStyle = 'white';
             ctx.font = 'bold 14px PingFang SC';
             ctx.textAlign = 'center';
@@ -248,7 +239,6 @@ class Fish {
         this.drawFishEye(ctx);
 
         ctx.restore();
-        ctx.globalAlpha = savedAlpha;
     }
 
     drawSpecialEffect(ctx) {
@@ -689,6 +679,10 @@ class Game {
         this.mouseX = 0;
         this.mouseY = 0;
         
+        // 游戏世界大小：3x3 屏幕 = 9 个屏幕
+        this.worldWidth = 0;
+        this.worldHeight = 0;
+        
         this.camera = {
             x: 0,
             y: 0,
@@ -710,6 +704,10 @@ class Game {
         this.canvas.height = window.innerHeight;
         this.mouseX = this.canvas.width / 2;
         this.mouseY = this.canvas.height / 2;
+        
+        // 游戏世界 = 3x3 屏幕
+        this.worldWidth = this.canvas.width * 3;
+        this.worldHeight = this.canvas.height * 3;
     }
 
     init() {
@@ -748,43 +746,43 @@ class Game {
         const minScale = 0.4;
         this.camera.targetScale = baseScale - (this.player.size - 15) / 65 * (baseScale - minScale);
         this.camera.targetScale = Math.max(minScale, Math.min(baseScale, this.camera.targetScale));
-        
         this.camera.scale += (this.camera.targetScale - this.camera.scale) * 0.05;
         
-        // 只有当玩家接近边界时才移动摄像机
-        const marginX = this.canvas.width * 0.3;
-        const marginY = this.canvas.height * 0.3;
+        // 基于鼠标位置移动摄像机
+        const edgeMargin = this.canvas.width * 0.15; // 屏幕边缘 15% 区域
+        const moveSpeed = 0.03; // 摄像机移动速度
         
+        // 检测鼠标是否在屏幕边缘
         let targetX = this.camera.x;
         let targetY = this.camera.y;
         
-        // 玩家超出左边界
-        if (this.player.x * this.camera.scale < marginX) {
-            targetX = marginX - this.player.x * this.camera.scale;
+        // 鼠标在左边缘 → 摄像机向左移动
+        if (this.mouseX < edgeMargin) {
+            targetX += (edgeMargin - this.mouseX) * moveSpeed;
         }
-        // 玩家超出右边界
-        else if (this.player.x * this.camera.scale > this.canvas.width - marginX) {
-            targetX = this.canvas.width - marginX - this.player.x * this.camera.scale;
-        }
-        
-        // 玩家超出上边界
-        if (this.player.y * this.camera.scale < marginY) {
-            targetY = marginY - this.player.y * this.camera.scale;
-        }
-        // 玩家超出下边界
-        else if (this.player.y * this.camera.scale > this.canvas.height - marginY) {
-            targetY = this.canvas.height - marginY - this.player.y * this.camera.scale;
+        // 鼠标在右边缘 → 摄像机向右移动
+        else if (this.mouseX > this.canvas.width - edgeMargin) {
+            targetX -= (this.mouseX - (this.canvas.width - edgeMargin)) * moveSpeed;
         }
         
-        // 平滑移动摄像机
-        this.camera.x += (targetX - this.camera.x) * 0.05;
-        this.camera.y += (targetY - this.camera.y) * 0.05;
+        // 鼠标在上边缘 → 摄像机向上移动
+        if (this.mouseY < edgeMargin) {
+            targetY += (edgeMargin - this.mouseY) * moveSpeed;
+        }
+        // 鼠标在下边缘 → 摄像机向下移动
+        else if (this.mouseY > this.canvas.height - edgeMargin) {
+            targetY -= (this.mouseY - (this.canvas.height - edgeMargin)) * moveSpeed;
+        }
         
-        // 限制摄像机范围
-        const maxX = 0;
-        const maxY = 0;
-        const minX = -this.canvas.width * 0.5;
-        const minY = -this.canvas.height * 0.5;
+        // 平滑移动
+        this.camera.x += (targetX - this.camera.x) * 0.1;
+        this.camera.y += (targetY - this.camera.y) * 0.1;
+        
+        // 限制摄像机在世界范围内
+        const maxX = this.worldWidth / 2 - this.canvas.width / 2;
+        const maxY = this.worldHeight / 2 - this.canvas.height / 2;
+        const minX = -maxX;
+        const minY = -maxY;
         
         this.camera.x = Math.max(minX, Math.min(maxX, this.camera.x));
         this.camera.y = Math.max(minY, Math.min(maxY, this.camera.y));
@@ -797,7 +795,8 @@ class Game {
             console.log('Audio init failed:', e);
         }
         
-        this.player = new Fish(this.canvas.width / 2, this.canvas.height / 2, 15, 3, true);
+        // 玩家从世界中心开始
+        this.player = new Fish(this.worldWidth / 2, this.worldHeight / 2, 15, 3, true);
         this.player.targetX = this.mouseX;
         this.player.targetY = this.mouseY;
         this.enemies = [];
@@ -805,12 +804,13 @@ class Game {
         this.score = 0;
         this.isRunning = true;
         this.camera.scale = 1;
+        this.camera.x = 0;
+        this.camera.y = 0;
         this.specialSpawnTimer = 0;
         
         this.startScreen.classList.add('hidden');
         this.gameOverScreen.classList.add('hidden');
         
-        // 延迟启动 BGM，避免卡顿
         setTimeout(() => {
             try {
                 if (this.soundManager.enabled && this.isRunning) {
@@ -838,8 +838,9 @@ class Game {
 
     spawnInitialEnemy() {
         const size = 8 + Math.random() * 7;
-        const x = Math.random() * this.canvas.width;
-        const y = Math.random() * this.canvas.height;
+        // 在玩家附近生成
+        const x = this.player.x + (Math.random() - 0.5) * this.canvas.width;
+        const y = this.player.y + (Math.random() - 0.5) * this.canvas.height;
         const enemy = new Fish(x, y, size, 1 + Math.random() * 2, false);
         this.enemies.push(enemy);
     }
@@ -1001,21 +1002,29 @@ class Game {
     }
 
     drawBackground() {
-        const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+        // 绘制世界背景（受摄像机影响）
+        const gradient = this.ctx.createLinearGradient(0, 0, 0, this.worldHeight);
         gradient.addColorStop(0, '#006994');
         gradient.addColorStop(0.5, '#004d7a');
         gradient.addColorStop(1, '#003366');
         this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillRect(0, 0, this.worldWidth, this.worldHeight);
 
-        const bottomY = this.canvas.height - 50;
+        // 海底（世界底部）
+        const bottomY = this.worldHeight - 50;
         this.ctx.fillStyle = '#1a1a2e';
-        this.ctx.beginPath();
-        this.ctx.ellipse(this.canvas.width / 2, bottomY + 100, this.canvas.width / 1.5, 100, 0, 0, Math.PI * 2);
-        this.ctx.fill();
+        
+        // 绘制多个海底丘陵
+        for (let i = 0; i < 6; i++) {
+            const x = i * this.worldWidth / 5;
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, bottomY + 100, this.worldWidth / 8, 100, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
 
+        // 海草（世界底部）
         this.ctx.fillStyle = '#2d5016';
-        const grassCount = Math.floor(this.canvas.width / 100);
+        const grassCount = Math.floor(this.worldWidth / 100);
         for (let i = 0; i < grassCount; i++) {
             const x = i * 100 + 50;
             const height = 50 + Math.sin(Date.now() / 1000 + i) * 20;
@@ -1025,6 +1034,11 @@ class Game {
             this.ctx.quadraticCurveTo(x - 20, bottomY - height / 2, x, bottomY);
             this.ctx.fill();
         }
+        
+        // 绘制世界边界提示
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(0, 0, this.worldWidth, this.worldHeight);
     }
 
     drawFishTypeLegend() {
@@ -1060,11 +1074,11 @@ class Game {
 
         this.player.targetX = this.mouseX;
         this.player.targetY = this.mouseY;
-        this.player.update(this.canvas.width / this.camera.scale, this.canvas.height / this.camera.scale, this.player);
+        this.player.update(this.worldWidth, this.worldHeight, this.player);
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
-            enemy.update(this.canvas.width / this.camera.scale, this.canvas.height / this.camera.scale, this.player);
+            enemy.update(this.worldWidth, this.worldHeight, this.player);
             
             if (enemy.shouldRemove()) {
                 this.enemies.splice(i, 1);
