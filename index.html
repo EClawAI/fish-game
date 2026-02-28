@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🐟 大鱼吃小鱼</title>
+    <title>🐟 大鱼吃小鱼 - 完整版</title>
     <style>
         * {
             margin: 0;
@@ -35,6 +35,23 @@
         }
         #ui div {
             margin: 5px 0;
+        }
+        #bgmBtn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background: rgba(0, 180, 219, 0.8);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            z-index: 100;
+            transition: background 0.2s;
+        }
+        #bgmBtn:hover {
+            background: rgba(0, 180, 219, 1);
         }
         #startScreen, #gameOverScreen {
             position: absolute;
@@ -94,6 +111,23 @@
             padding: 15px 30px;
             border-radius: 20px;
         }
+        .fish-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+            font-size: 14px;
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .fish-item {
+            text-align: center;
+        }
+        .special-fish {
+            color: #FFD700;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -102,16 +136,37 @@
         <div>分数：<span id="score">0</span></div>
         <div>大小：<span id="size">10</span></div>
     </div>
+    <button id="bgmBtn" onclick="toggleBGM()">🔇 音乐关</button>
     
     <div id="startScreen">
         <h1>🐟 大鱼吃小鱼</h1>
         <p>
             控制你的鱼，吃掉比你小的鱼<br>
-            躲避比你大的鱼，从<strong>小丑鱼</strong>进化成<strong>鲸鱼</strong>！
+            躲避比你大的鱼，从<strong>小丑鱼</strong>进化成<strong>蓝鲸</strong>！
         </p>
+        
+        <div class="fish-list">
+            <div class="fish-item">🐠 小丑鱼</div>
+            <div class="fish-item">🐟 孔雀鱼</div>
+            <div class="fish-item">🐠 灯鱼</div>
+            <div class="fish-item">🐟 神仙鱼</div>
+            <div class="fish-item">🐠 蝴蝶鱼</div>
+            <div class="fish-item">🐟 鹦鹉鱼</div>
+            <div class="fish-item">🐟 金枪鱼</div>
+            <div class="fish-item">🦈 鲨鱼</div>
+            <div class="fish-item">🐟 魔鬼鱼</div>
+            <div class="fish-item">🐬 海豚</div>
+            <div class="fish-item">🐋 虎鲸</div>
+            <div class="fish-item">🐋 蓝鲸</div>
+        </div>
+        
+        <p class="special-fish">
+            ✨ 特殊鱼类：🌟 黄金鱼 (500 分) | 🌈 彩虹鱼 (300 分) | 👻 幽灵鱼 (200 分)
+        </p>
+        
         <button class="btn" onclick="game.start()">开始游戏</button>
         <div class="controls">
-            🖱️ 鼠标移动控制方向 | 触摸屏幕（移动端）
+            🖱️ 鼠标移动控制方向 | 🔊 点击按钮开关音乐
         </div>
     </div>
     
@@ -123,5 +178,11 @@
     </div>
 
     <script src="src/game.js"></script>
+    <script>
+        function toggleBGM() {
+            const enabled = game.soundManager.toggle();
+            document.getElementById('bgmBtn').textContent = enabled ? '🔊 音乐开' : '🔇 音乐关';
+        }
+    </script>
 </body>
 </html>

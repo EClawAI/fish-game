@@ -1,17 +1,64 @@
-// 大鱼吃小鱼游戏核心逻辑 - 全屏优化版
+// 大鱼吃小鱼游戏 - 完整版
 
-// 鱼类定义 - 从最小到最大
+// 鱼类定义 - 12 种普通鱼 + 3 种特殊鱼
 const FISH_TYPES = [
-    { name: '小丑鱼', minSize: 5, maxSize: 15, color: '#FF6B6B', pattern: 'stripes' },
-    { name: '热带鱼', minSize: 15, maxSize: 25, color: '#4ECDC4', pattern: 'spots' },
-    { name: '金鱼', minSize: 25, maxSize: 35, color: '#FFD93D', pattern: 'gradient' },
-    { name: '鲑鱼', minSize: 35, maxSize: 45, color: '#FF8C42', pattern: 'scales' },
-    { name: '鲨鱼', minSize: 45, maxSize: 60, color: '#4A90A4', pattern: 'smooth' },
-    { name: '鲸鱼', minSize: 60, maxSize: 80, color: '#2E5C8A', pattern: 'whale' }
+    // 小型鱼 (5-20)
+    { name: '小丑鱼', minSize: 5, maxSize: 12, color: '#FF6B6B', pattern: 'stripes', rarity: 'common' },
+    { name: '孔雀鱼', minSize: 12, maxSize: 18, color: '#FF9FF3', pattern: 'gradient', rarity: 'common' },
+    { name: '灯鱼', minSize: 18, maxSize: 25, color: '#54A0FF', pattern: 'glow', rarity: 'common' },
+    
+    // 中型鱼 (25-45)
+    { name: '神仙鱼', minSize: 25, maxSize: 32, color: '#48DBFB', pattern: 'elegant', rarity: 'common' },
+    { name: '蝴蝶鱼', minSize: 32, maxSize: 38, color: '#FFD93D', pattern: 'spots', rarity: 'common' },
+    { name: '鹦鹉鱼', minSize: 38, maxSize: 45, color: '#FF6B9D', pattern: 'colorful', rarity: 'common' },
+    
+    // 大型鱼 (45-65)
+    { name: '金枪鱼', minSize: 45, maxSize: 52, color: '#C8D6E5', pattern: 'streamline', rarity: 'common' },
+    { name: '鲨鱼', minSize: 52, maxSize: 60, color: '#576574', pattern: 'smooth', rarity: 'uncommon' },
+    { name: '魔鬼鱼', minSize: 60, maxSize: 65, color: '#8395A7', pattern: 'wing', rarity: 'uncommon' },
+    
+    // 巨型鱼 (65-80)
+    { name: '海豚', minSize: 65, maxSize: 72, color: '#0ABDE3', pattern: 'smart', rarity: 'rare' },
+    { name: '虎鲸', minSize: 72, maxSize: 78, color: '#222F3E', pattern: 'orca', rarity: 'rare' },
+    { name: '蓝鲸', minSize: 78, maxSize: 80, color: '#1E3799', pattern: 'whale', rarity: 'legendary' }
 ];
 
+// 特殊鱼类（稀有）
+const SPECIAL_FISH = {
+    golden: {
+        name: '🌟 黄金鱼',
+        size: 25,
+        color: '#FFD700',
+        pattern: 'golden',
+        rarity: 'special',
+        points: 500,
+        speed: 4,
+        spawnChance: 0.02 // 2% 概率
+    },
+    rainbow: {
+        name: '🌈 彩虹鱼',
+        size: 30,
+        color: 'rainbow',
+        pattern: 'rainbow',
+        rarity: 'special',
+        points: 300,
+        speed: 3.5,
+        spawnChance: 0.03 // 3% 概率
+    },
+    ghost: {
+        name: '👻 幽灵鱼',
+        size: 35,
+        color: '#A8E6CF',
+        pattern: 'ghost',
+        rarity: 'special',
+        points: 200,
+        speed: 2,
+        spawnChance: 0.04 // 4% 概率
+    }
+};
+
 class Fish {
-    constructor(x, y, size, speed, isPlayer = false) {
+    constructor(x, y, size, speed, isPlayer = false, specialType = null) {
         this.x = x;
         this.y = y;
         this.size = size;
@@ -29,14 +76,25 @@ class Fish {
         this.changeDirTimer = 0;
         this.changeDirInterval = 60 + Math.random() * 60;
         
-        // 生存周期系统
+        // 特殊鱼类
+        this.specialType = specialType;
+        this.isSpecial = specialType !== null;
+        this.rainbowAngle = 0;
+        
+        // 生存周期
         this.birthTime = Date.now();
-        this.maxLifetime = 15000 + Math.random() * 15000; // 15-30 秒
+        this.maxLifetime = this.isSpecial ? 30000 : 15000 + Math.random() * 15000;
         this.age = 0;
         this.isDying = false;
+        
+        // 音效
+        this.eatenSound = null;
     }
 
     getFishType() {
+        if (this.specialType) {
+            return SPECIAL_FISH[this.specialType];
+        }
         for (let type of FISH_TYPES) {
             if (this.size >= type.minSize && this.size < type.maxSize) {
                 return type;
@@ -46,24 +104,25 @@ class Fish {
     }
 
     randomColor() {
+        if (this.specialType) {
+            return SPECIAL_FISH[this.specialType].color;
+        }
         if (this.fishType) {
             return this.fishType.color;
         }
-        const colors = [
-            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
-            '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
-            '#BB8FCE', '#85C1E9', '#F8B500', '#00CED1'
-        ];
-        return colors[Math.floor(Math.random() * colors.length)];
+        return '#4ECDC4';
     }
 
     update(canvasWidth, canvasHeight, player) {
-        // 更新年龄
         this.age = Date.now() - this.birthTime;
         
-        // 检查是否超过生命周期
         if (this.age > this.maxLifetime * 0.8) {
             this.isDying = true;
+        }
+        
+        // 彩虹鱼颜色变化
+        if (this.specialType === 'rainbow') {
+            this.rainbowAngle += 0.05;
         }
         
         if (this.isPlayer) {
@@ -78,20 +137,16 @@ class Fish {
             else if (dx < 0) this.direction = -1;
             this.glowAngle += 0.1;
         } else {
-            // AI 鱼：随机游动
             this.changeDirTimer++;
             
-            // 老年鱼游动变慢
             const ageFactor = Math.max(0.3, 1 - (this.age / this.maxLifetime) * 0.5);
             
-            // 定期改变方向
             if (this.changeDirTimer > this.changeDirInterval) {
                 this.changeDirTimer = 0;
                 this.changeDirInterval = 60 + Math.random() * 60;
                 this.targetAngle = Math.random() * Math.PI * 2;
             }
             
-            // 躲避大鱼（玩家）
             if (player && Math.abs(player.x - this.x) < 200 && Math.abs(player.y - this.y) < 200) {
                 if (player.size > this.size) {
                     const escapeAngle = Math.atan2(player.y - this.y, player.x - this.x) + Math.PI;
@@ -99,20 +154,16 @@ class Fish {
                 }
             }
             
-            // 平滑转向
             let angleDiff = this.targetAngle - this.angle;
             while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
             while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
             this.angle += angleDiff * 0.05;
             
-            // 根据角度移动
             this.x += Math.cos(this.angle) * this.speed * ageFactor;
             this.y += Math.sin(this.angle) * this.speed * ageFactor;
             
-            // 根据游动方向设置朝向
             this.direction = Math.cos(this.angle) > 0 ? 1 : -1;
             
-            // 边界检测：碰到边界反弹
             const margin = this.size * 2;
             if (this.x < -margin) {
                 this.x = canvasWidth + margin;
@@ -134,7 +185,6 @@ class Fish {
     }
 
     shouldRemove() {
-        // 超过生命周期应该移除
         return this.age > this.maxLifetime;
     }
 
@@ -142,13 +192,17 @@ class Fish {
         ctx.save();
         ctx.translate(this.x, this.y);
         
-        // 老年鱼半透明效果
-        if (this.isDying && !this.isPlayer) {
+        if (this.isDying && !this.isPlayer && !this.isSpecial) {
             ctx.globalAlpha = 1 - ((this.age - this.maxLifetime * 0.8) / (this.maxLifetime * 0.2));
         }
         
         const drawAngle = this.isPlayer ? 0 : this.angle;
         ctx.rotate(drawAngle);
+        
+        // 特殊鱼类效果
+        if (this.isSpecial) {
+            this.drawSpecialEffect(ctx);
+        }
         
         if (this.isPlayer) {
             const glowSize = this.size * 2.5 + Math.sin(this.glowAngle) * 3;
@@ -182,57 +236,65 @@ class Fish {
         ctx.globalAlpha = 1;
     }
 
-    draw(ctx, cameraScale = 1) {
-        ctx.save();
-        ctx.translate(this.x, this.y);
+    drawSpecialEffect(ctx) {
+        // 特殊鱼类光环
+        const time = Date.now() / 200;
         
-        // 根据游动角度旋转
-        const drawAngle = this.isPlayer ? 0 : this.angle;
-        ctx.rotate(drawAngle);
-        
-        // 玩家特殊效果：发光光环
-        if (this.isPlayer) {
-            const glowSize = this.size * 2.5 + Math.sin(this.glowAngle) * 3;
-            const gradient = ctx.createRadialGradient(0, 0, this.size * 1.5, 0, 0, glowSize);
-            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-            gradient.addColorStop(0.5, 'rgba(100, 200, 255, 0.15)');
-            gradient.addColorStop(1, 'rgba(100, 200, 255, 0)');
+        if (this.specialType === 'golden') {
+            // 金色光芒
+            const gradient = ctx.createRadialGradient(0, 0, this.size, 0, 0, this.size * 2.5);
+            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
             ctx.beginPath();
-            ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
+            ctx.arc(0, 0, this.size * 2.5, 0, Math.PI * 2);
             ctx.fillStyle = gradient;
             ctx.fill();
             
-            // 玩家名称标签
-            ctx.rotate(-drawAngle);
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 14px PingFang SC';
-            ctx.textAlign = 'center';
-            ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 4;
-            ctx.fillText('👤 你', 0, -this.size * 2.5);
-            ctx.shadowBlur = 0;
-            ctx.rotate(drawAngle);
+            // 闪烁星星
+            if (Math.sin(time * 2) > 0.7) {
+                ctx.fillStyle = '#FFF';
+                ctx.beginPath();
+                ctx.arc(Math.sin(time) * this.size * 1.5, Math.cos(time) * this.size * 1.5, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else if (this.specialType === 'rainbow') {
+            // 彩虹色
+            const hue = (this.rainbowAngle * 50) % 360;
+            ctx.strokeStyle = `hsla(${hue}, 100%, 50%, 0.5)`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size * 1.8, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (this.specialType === 'ghost') {
+            // 幽灵半透明
+            ctx.globalAlpha = 0.6 + Math.sin(time) * 0.2;
+            
+            // 小幽灵粒子
+            if (Math.random() < 0.1) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.beginPath();
+                ctx.arc(this.size * 2, -this.size * 2, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
-        
-        // 根据鱼的类型绘制不同外观
-        this.drawFishBody(ctx);
-        this.drawFishPattern(ctx);
-        this.drawFishTail(ctx);
-        this.drawFishFins(ctx);
-        this.drawFishEye(ctx);
-
-        ctx.restore();
     }
 
     drawFishBody(ctx) {
         ctx.beginPath();
         ctx.ellipse(0, 0, this.size * 1.5, this.size, 0, 0, Math.PI * 2);
-        ctx.fillStyle = this.fishType ? this.fishType.color : this.color;
+        
+        if (this.specialType === 'rainbow') {
+            const hue = (this.rainbowAngle * 50) % 360;
+            ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
+        } else {
+            ctx.fillStyle = this.fishType ? this.fishType.color : this.color;
+        }
         ctx.fill();
         
         const gradient = ctx.createRadialGradient(-this.size * 0.5, -this.size * 0.3, 0, 0, 0, this.size);
-        gradient.addColorStop(0, this.lightenColor(this.fishType ? this.fishType.color : this.color, 30));
-        gradient.addColorStop(1, this.fishType ? this.fishType.color : this.color);
+        const baseColor = this.specialType === 'rainbow' ? `hsl(${(this.rainbowAngle * 50) % 360}, 80%, 60%)` : (this.fishType ? this.fishType.color : this.color);
+        gradient.addColorStop(0, this.lightenColor(baseColor, 30));
+        gradient.addColorStop(1, baseColor);
         ctx.fillStyle = gradient;
         ctx.fill();
     }
@@ -243,48 +305,56 @@ class Fish {
         ctx.strokeStyle = this.lightenColor(this.fishType.color, 20);
         ctx.lineWidth = 2;
         
-        switch(this.fishType.pattern) {
-            case 'stripes':
-                for (let i = -this.size * 0.8; i < this.size * 0.8; i += this.size * 0.4) {
+        if (this.specialType === 'golden') {
+            // 金色闪光
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.arc(-this.size * 0.5 + i * this.size * 0.3, 0, this.size * 0.1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else {
+            switch(this.fishType.pattern) {
+                case 'stripes':
+                    for (let i = -this.size * 0.8; i < this.size * 0.8; i += this.size * 0.4) {
+                        ctx.beginPath();
+                        ctx.moveTo(i, -this.size * 0.7);
+                        ctx.lineTo(i + this.size * 0.2, this.size * 0.7);
+                        ctx.stroke();
+                    }
+                    break;
+                case 'spots':
+                    for (let i = 0; i < 5; i++) {
+                        ctx.beginPath();
+                        ctx.arc(-this.size * 0.5 + i * this.size * 0.3, Math.sin(i) * this.size * 0.3, this.size * 0.15, 0, Math.PI * 2);
+                        ctx.fillStyle = this.lightenColor(this.fishType.color, 40);
+                        ctx.fill();
+                    }
+                    break;
+                case 'glow':
+                    ctx.shadowColor = this.fishType.color;
+                    ctx.shadowBlur = 10;
                     ctx.beginPath();
-                    ctx.moveTo(i, -this.size * 0.7);
-                    ctx.lineTo(i + this.size * 0.2, this.size * 0.7);
-                    ctx.stroke();
-                }
-                break;
-            case 'spots':
-                for (let i = 0; i < 5; i++) {
-                    ctx.beginPath();
-                    ctx.arc(-this.size * 0.5 + i * this.size * 0.3, 
-                           Math.sin(i) * this.size * 0.3, 
-                           this.size * 0.15, 0, Math.PI * 2);
-                    ctx.fillStyle = this.lightenColor(this.fishType.color, 40);
+                    ctx.arc(0, 0, this.size * 0.8, 0, Math.PI * 2);
+                    ctx.fillStyle = this.lightenColor(this.fishType.color, 20);
                     ctx.fill();
-                }
-                break;
-            case 'scales':
-                for (let i = -this.size; i < this.size; i += this.size * 0.3) {
-                    ctx.beginPath();
-                    ctx.arc(i, 0, this.size * 0.4, -Math.PI * 0.3, Math.PI * 0.3);
-                    ctx.stroke();
-                }
-                break;
-            case 'whale':
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                for (let i = 0; i < 3; i++) {
-                    ctx.beginPath();
-                    ctx.ellipse(-this.size * 0.5 + i * this.size * 0.4, 
-                               -this.size * 0.3, 
-                               this.size * 0.2, this.size * 0.1, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-            default:
-                for (let i = -this.size; i < this.size; i += this.size * 0.3) {
-                    ctx.beginPath();
-                    ctx.arc(i, 0, this.size * 0.4, -Math.PI * 0.3, Math.PI * 0.3);
-                    ctx.stroke();
-                }
+                    ctx.shadowBlur = 0;
+                    break;
+                case 'whale':
+                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.beginPath();
+                        ctx.ellipse(-this.size * 0.5 + i * this.size * 0.4, -this.size * 0.3, this.size * 0.2, this.size * 0.1, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    break;
+                default:
+                    for (let i = -this.size; i < this.size; i += this.size * 0.3) {
+                        ctx.beginPath();
+                        ctx.arc(i, 0, this.size * 0.4, -Math.PI * 0.3, Math.PI * 0.3);
+                        ctx.stroke();
+                    }
+            }
         }
     }
 
@@ -333,6 +403,7 @@ class Fish {
     }
 
     lightenColor(color, percent) {
+        if (color.startsWith('hsl')) return color;
         const num = parseInt(color.replace('#', ''), 16);
         const amt = Math.round(2.55 * percent);
         const R = Math.min(255, (num >> 16) + amt);
@@ -345,6 +416,143 @@ class Fish {
         this.size = Math.min(80, this.size + amount * 3);
         this.speed = 3 + (20 / this.size);
         this.fishType = this.getFishType();
+    }
+}
+
+// 音效管理器
+class SoundManager {
+    constructor() {
+        this.audioContext = null;
+        this.bgmPlaying = false;
+        this.bgmOscillators = [];
+        this.enabled = true;
+    }
+
+    init() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            this.enabled = false;
+        }
+    }
+
+    playEatSound(size) {
+        if (!this.enabled || !this.audioContext) return;
+        
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(this.audioContext.destination);
+        
+        // 根据鱼大小改变音调
+        osc.frequency.value = 800 - size * 5;
+        osc.type = 'sine';
+        
+        gain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+        
+        osc.start(this.audioContext.currentTime);
+        osc.stop(this.audioContext.currentTime + 0.1);
+    }
+
+    playSpecialSound() {
+        if (!this.enabled || !this.audioContext) return;
+        
+        // 特殊鱼类音效（和弦）
+        const notes = [523.25, 659.25, 783.99]; // C大调和弦
+        
+        notes.forEach((freq, i) => {
+            setTimeout(() => {
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(this.audioContext.destination);
+                
+                osc.frequency.value = freq;
+                osc.type = 'sine';
+                
+                gain.gain.setValueAtTime(0.2, this.audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+                
+                osc.start(this.audioContext.currentTime);
+                osc.stop(this.audioContext.currentTime + 0.3);
+            }, i * 100);
+        });
+    }
+
+    playGameOverSound() {
+        if (!this.enabled || !this.audioContext) return;
+        
+        const notes = [392, 370, 349, 311]; // 下降音阶
+        
+        notes.forEach((freq, i) => {
+            setTimeout(() => {
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(this.audioContext.destination);
+                
+                osc.frequency.value = freq;
+                osc.type = 'triangle';
+                
+                gain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.4);
+                
+                osc.start(this.audioContext.currentTime);
+                osc.stop(this.audioContext.currentTime + 0.4);
+            }, i * 150);
+        });
+    }
+
+    startBGM() {
+        if (!this.enabled || !this.audioContext || this.bgmPlaying) return;
+        
+        this.bgmPlaying = true;
+        
+        // 简单的海洋氛围音（低频波浪声）
+        const createDrone = (freq) => {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(this.audioContext.destination);
+            
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            
+            gain.gain.value = 0.05;
+            
+            osc.start();
+            return { osc, gain };
+        };
+        
+        this.bgmOscillators = [
+            createDrone(110), // A2
+            createDrone(164.81), // E3
+            createDrone(196) // G3
+        ];
+    }
+
+    stopBGM() {
+        this.bgmPlaying = false;
+        this.bgmOscillators.forEach(({ osc, gain }) => {
+            gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.5);
+            osc.stop(this.audioContext.currentTime + 0.5);
+        });
+        this.bgmOscillators = [];
+    }
+
+    toggle() {
+        this.enabled = !this.enabled;
+        if (this.enabled) {
+            this.startBGM();
+        } else {
+            this.stopBGM();
+        }
+        return this.enabled;
     }
 }
 
@@ -416,6 +624,7 @@ class Game {
         this.startScreen = document.getElementById('startScreen');
         this.gameOverScreen = document.getElementById('gameOverScreen');
         this.finalScoreEl = document.getElementById('finalScore');
+        this.bgmBtn = document.getElementById('bgmBtn');
         
         this.player = null;
         this.enemies = [];
@@ -432,16 +641,17 @@ class Game {
             scale: 1,
             targetScale: 1
         };
+        
+        this.soundManager = new SoundManager();
+        this.specialSpawnTimer = 0;
 
         this.init();
         this.resize();
         
-        // 监听窗口大小变化
         window.addEventListener('resize', () => this.resize());
     }
 
     resize() {
-        // 全屏自适应
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
         this.mouseX = this.canvas.width / 2;
@@ -482,6 +692,8 @@ class Game {
     }
 
     start() {
+        this.soundManager.init();
+        
         this.player = new Fish(this.canvas.width / 2, this.canvas.height / 2, 15, 3, true);
         this.player.targetX = this.mouseX;
         this.player.targetY = this.mouseY;
@@ -490,9 +702,12 @@ class Game {
         this.score = 0;
         this.isRunning = true;
         this.camera.scale = 1;
+        this.specialSpawnTimer = 0;
         
         this.startScreen.classList.add('hidden');
         this.gameOverScreen.classList.add('hidden');
+        
+        this.soundManager.startBGM();
         
         this.updateUI();
         this.loop();
@@ -506,6 +721,7 @@ class Game {
         }
         
         this.spawnEnemy();
+        this.spawnSpecialFish();
     }
 
     spawnInitialEnemy() {
@@ -523,10 +739,8 @@ class Game {
     spawnEnemy() {
         if (!this.isRunning) return;
 
-        // 数量控制：最大敌人数量
         const maxEnemies = 20 + Math.floor(this.score / 100) * 5;
         if (this.enemies.length >= maxEnemies) {
-            // 超过最大数量，延迟生成
             setTimeout(() => this.spawnEnemy(), 2000);
             return;
         }
@@ -542,7 +756,6 @@ class Game {
             size = Math.min(size, 80);
         }
         
-        // 从屏幕边缘随机位置生成
         let x, y;
         const edge = Math.floor(Math.random() * 4);
         switch(edge) {
@@ -561,8 +774,66 @@ class Game {
         setTimeout(() => this.spawnEnemy(), nextSpawn);
     }
 
-    createExplosion(x, y, color) {
-        for (let i = 0; i < 15; i++) {
+    spawnSpecialFish() {
+        if (!this.isRunning) return;
+        
+        // 每 30 秒尝试生成特殊鱼类
+        setInterval(() => {
+            if (!this.isRunning || this.enemies.length < 5) return;
+            
+            const rand = Math.random();
+            let specialType = null;
+            
+            if (rand < 0.02) {
+                specialType = 'golden';
+            } else if (rand < 0.05) {
+                specialType = 'rainbow';
+            } else if (rand < 0.09) {
+                specialType = 'ghost';
+            }
+            
+            if (specialType) {
+                const config = SPECIAL_FISH[specialType];
+                const edge = Math.floor(Math.random() * 4);
+                let x, y;
+                switch(edge) {
+                    case 0: x = Math.random() * this.canvas.width; y = -50; break;
+                    case 1: x = this.canvas.width + 50; y = Math.random() * this.canvas.height; break;
+                    case 2: x = Math.random() * this.canvas.width; y = this.canvas.height + 50; break;
+                    case 3: x = -50; y = Math.random() * this.canvas.height; break;
+                }
+                
+                const special = new Fish(x, y, config.size, config.speed, false, specialType);
+                this.enemies.push(special);
+                
+                // 特殊鱼生成提示
+                this.showSpecialNotice(config.name);
+            }
+        }, 30000);
+    }
+
+    showSpecialNotice(name) {
+        const notice = document.createElement('div');
+        notice.textContent = `✨ ${name} 出现了！`;
+        notice.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            color: #FFD700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            pointer-events: none;
+            z-index: 300;
+            animation: fadeOut 2s forwards;
+        `;
+        document.body.appendChild(notice);
+        setTimeout(() => notice.remove(), 2000);
+    }
+
+    createExplosion(x, y, color, isSpecial = false) {
+        const count = isSpecial ? 30 : 15;
+        for (let i = 0; i < count; i++) {
             this.particles.push(new Particle(x, y, color));
         }
     }
@@ -576,9 +847,17 @@ class Game {
             
             if (dist < this.player.size + enemy.size) {
                 if (this.player.size > enemy.size * 1.1) {
-                    this.score += Math.floor(enemy.size);
+                    const points = enemy.isSpecial ? (SPECIAL_FISH[enemy.specialType]?.points || 100) : Math.floor(enemy.size);
+                    this.score += points;
                     this.player.grow(enemy.size * 0.05);
-                    this.createExplosion(enemy.x, enemy.y, enemy.color);
+                    this.createExplosion(enemy.x, enemy.y, enemy.color, enemy.isSpecial);
+                    
+                    if (enemy.isSpecial) {
+                        this.soundManager.playSpecialSound();
+                    } else {
+                        this.soundManager.playEatSound(enemy.size);
+                    }
+                    
                     this.enemies.splice(i, 1);
                     this.updateUI();
                 } else if (this.player.size < enemy.size * 0.9) {
@@ -591,15 +870,13 @@ class Game {
     updateUI() {
         this.scoreEl.textContent = this.score;
         this.sizeEl.textContent = Math.floor(this.player.size);
-        // 显示当前鱼群数量
-        // this.ctx.fillStyle = 'white';
-        // this.ctx.font = '14px PingFang SC';
-        // this.ctx.fillText(`鱼群：${this.enemies.length}`, 20, 80);
     }
 
     gameOver() {
         this.isRunning = false;
         this.finalScoreEl.textContent = this.score;
+        this.soundManager.playGameOverSound();
+        this.soundManager.stopBGM();
         this.gameOverScreen.classList.remove('hidden');
     }
 
@@ -611,14 +888,12 @@ class Game {
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // 海底
         const bottomY = this.canvas.height - 50;
         this.ctx.fillStyle = '#1a1a2e';
         this.ctx.beginPath();
         this.ctx.ellipse(this.canvas.width / 2, bottomY + 100, this.canvas.width / 1.5, 100, 0, 0, Math.PI * 2);
         this.ctx.fill();
 
-        // 海草
         this.ctx.fillStyle = '#2d5016';
         const grassCount = Math.floor(this.canvas.width / 100);
         for (let i = 0; i < grassCount; i++) {
@@ -666,12 +941,10 @@ class Game {
         this.player.targetY = this.mouseY;
         this.player.update(this.canvas.width / this.camera.scale, this.canvas.height / this.camera.scale, this.player);
 
-        // 更新敌人并移除超时的鱼
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
             enemy.update(this.canvas.width / this.camera.scale, this.canvas.height / this.camera.scale, this.player);
             
-            // 移除超过生命周期的鱼
             if (enemy.shouldRemove()) {
                 this.enemies.splice(i, 1);
             }
@@ -699,3 +972,13 @@ class Game {
 }
 
 const game = new Game();
+
+// 添加 CSS 动画
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeOut {
+        0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+    }
+`;
+document.head.appendChild(style);
