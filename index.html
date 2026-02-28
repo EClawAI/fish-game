@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🐟 大鱼吃小鱼</title>
     <style>
         * {
@@ -10,33 +10,31 @@
             padding: 0;
             box-sizing: border-box;
         }
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #1a1a2e;
             font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            overflow: hidden;
-        }
-        #gameContainer {
-            position: relative;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         }
         #gameCanvas {
             display: block;
+            width: 100%;
+            height: 100%;
             background: linear-gradient(180deg, #006994 0%, #003366 100%);
         }
         #ui {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 20px;
+            left: 20px;
             color: white;
-            font-size: 18px;
+            font-size: 20px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
             pointer-events: none;
+            z-index: 100;
+        }
+        #ui div {
+            margin: 5px 0;
         }
         #startScreen, #gameOverScreen {
             position: absolute;
@@ -50,26 +48,27 @@
             align-items: center;
             background: rgba(0,0,0,0.7);
             color: white;
-            z-index: 10;
+            z-index: 200;
         }
         #startScreen h1, #gameOverScreen h1 {
-            font-size: 48px;
+            font-size: 64px;
             margin-bottom: 20px;
             text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
         }
         #startScreen p, #gameOverScreen p {
-            font-size: 18px;
-            margin-bottom: 30px;
+            font-size: 20px;
+            margin-bottom: 40px;
             text-align: center;
-            line-height: 1.6;
+            line-height: 1.8;
+            max-width: 600px;
         }
         .btn {
-            padding: 15px 50px;
-            font-size: 20px;
+            padding: 20px 60px;
+            font-size: 24px;
             background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%);
             color: white;
             border: none;
-            border-radius: 30px;
+            border-radius: 40px;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
             box-shadow: 0 5px 20px rgba(0,180,219,0.4);
@@ -82,43 +81,45 @@
             display: none !important;
         }
         #finalScore {
-            font-size: 36px;
+            font-size: 48px;
             color: #00b4db;
             margin: 20px 0;
+            font-weight: bold;
         }
         .controls {
-            margin-top: 20px;
-            font-size: 14px;
+            margin-top: 30px;
+            font-size: 16px;
             opacity: 0.8;
+            background: rgba(255,255,255,0.1);
+            padding: 15px 30px;
+            border-radius: 20px;
         }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="900" height="600"></canvas>
-        <div id="ui">
-            <div>分数：<span id="score">0</span></div>
-            <div>大小：<span id="size">10</span></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+        <div>分数：<span id="score">0</span></div>
+        <div>大小：<span id="size">10</span></div>
+    </div>
+    
+    <div id="startScreen">
+        <h1>🐟 大鱼吃小鱼</h1>
+        <p>
+            控制你的鱼，吃掉比你小的鱼<br>
+            躲避比你大的鱼，从<strong>小丑鱼</strong>进化成<strong>鲸鱼</strong>！
+        </p>
+        <button class="btn" onclick="game.start()">开始游戏</button>
+        <div class="controls">
+            🖱️ 鼠标移动控制方向 | 触摸屏幕（移动端）
         </div>
-        
-        <div id="startScreen">
-            <h1>🐟 大鱼吃小鱼</h1>
-            <p>
-                控制你的鱼，吃掉比你小的鱼<br>
-                躲避比你大的鱼，生存更长时间！
-            </p>
-            <button class="btn" onclick="game.start()">开始游戏</button>
-            <div class="controls">
-                🖱️ 鼠标移动控制方向 | 或触摸屏幕
-            </div>
-        </div>
-        
-        <div id="gameOverScreen" class="hidden">
-            <h1>游戏结束</h1>
-            <div id="finalScore">0</div>
-            <p>你被更大的鱼吃掉了！</p>
-            <button class="btn" onclick="game.restart()">再来一次</button>
-        </div>
+    </div>
+    
+    <div id="gameOverScreen" class="hidden">
+        <h1>游戏结束</h1>
+        <div id="finalScore">0</div>
+        <p>你被更大的鱼吃掉了！</p>
+        <button class="btn" onclick="game.restart()">再来一次</button>
     </div>
 
     <script src="src/game.js"></script>

@@ -1,4 +1,4 @@
-// 大鱼吃小鱼游戏核心逻辑 - 优化版
+// 大鱼吃小鱼游戏核心逻辑 - 全屏优化版
 
 // 鱼类定义 - 从最小到最大
 const FISH_TYPES = [
@@ -19,11 +19,15 @@ class Fish {
         this.speed = speed;
         this.isPlayer = isPlayer;
         this.direction = Math.random() > 0.5 ? 1 : -1;
+        this.angle = Math.random() * Math.PI * 2; // 游动角度
+        this.targetAngle = this.angle;
         this.color = this.randomColor();
         this.tailAngle = 0;
         this.tailSpeed = 0.1 + Math.random() * 0.1;
         this.fishType = this.getFishType();
         this.glowAngle = 0;
+        this.changeDirTimer = 0;
+        this.changeDirInterval = 60 + Math.random() * 60; // 随机改变方向间隔
     }
 
     getFishType() {
@@ -60,32 +64,65 @@ class Fish {
             else if (dx < 0) this.direction = -1;
             this.glowAngle += 0.1;
         } else {
-            this.x += this.speed * this.direction;
+            // AI 鱼：随机游动
+            this.changeDirTimer++;
             
-            if (this.x < -this.size * 2) {
-                this.x = canvasWidth + this.size * 2;
-                this.direction = -1;
-            } else if (this.x > canvasWidth + this.size * 2) {
-                this.x = -this.size * 2;
-                this.direction = 1;
+            // 定期改变方向
+            if (this.changeDirTimer > this.changeDirInterval) {
+                this.changeDirTimer = 0;
+                this.changeDirInterval = 60 + Math.random() * 60;
+                this.targetAngle = Math.random() * Math.PI * 2;
             }
-
+            
+            // 躲避大鱼（玩家）
             if (player && Math.abs(player.x - this.x) < 200 && Math.abs(player.y - this.y) < 200) {
                 if (player.size > this.size) {
-                    if (player.x < this.x && this.direction === 1) this.direction = -1;
-                    if (player.x > this.x && this.direction === -1) this.direction = 1;
+                    const escapeAngle = Math.atan2(player.y - this.y, player.x - this.x) + Math.PI;
+                    this.targetAngle = escapeAngle;
                 }
+            }
+            
+            // 平滑转向
+            let angleDiff = this.targetAngle - this.angle;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            this.angle += angleDiff * 0.05;
+            
+            // 根据角度移动
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed;
+            
+            // 根据游动方向设置朝向
+            this.direction = Math.cos(this.angle) > 0 ? 1 : -1;
+            
+            // 边界检测：碰到边界反弹
+            const margin = this.size * 2;
+            if (this.x < -margin) {
+                this.x = canvasWidth + margin;
+                this.targetAngle = Math.random() * Math.PI - Math.PI / 2; // 向右
+            } else if (this.x > canvasWidth + margin) {
+                this.x = -margin;
+                this.targetAngle = Math.random() * Math.PI + Math.PI / 2; // 向左
+            }
+            if (this.y < -margin) {
+                this.y = canvasHeight + margin;
+                this.targetAngle = Math.random() * Math.PI; // 向下
+            } else if (this.y > canvasHeight + margin) {
+                this.y = -margin;
+                this.targetAngle = Math.random() * Math.PI + Math.PI; // 向上
             }
         }
 
-        this.y = Math.max(this.size, Math.min(canvasHeight - this.size, this.y));
         this.tailAngle += this.tailSpeed;
     }
 
     draw(ctx, cameraScale = 1) {
         ctx.save();
         ctx.translate(this.x, this.y);
-        ctx.scale(this.direction * cameraScale, cameraScale);
+        
+        // 根据游动角度旋转
+        const drawAngle = this.isPlayer ? 0 : this.angle;
+        ctx.rotate(drawAngle);
         
         // 玩家特殊效果：发光光环
         if (this.isPlayer) {
@@ -100,7 +137,7 @@ class Fish {
             ctx.fill();
             
             // 玩家名称标签
-            ctx.scale(this.direction, 1);
+            ctx.rotate(-drawAngle);
             ctx.fillStyle = 'white';
             ctx.font = 'bold 14px PingFang SC';
             ctx.textAlign = 'center';
@@ -108,7 +145,7 @@ class Fish {
             ctx.shadowBlur = 4;
             ctx.fillText('👤 你', 0, -this.size * 2.5);
             ctx.shadowBlur = 0;
-            ctx.scale(this.direction, 1);
+            ctx.rotate(drawAngle);
         }
         
         // 根据鱼的类型绘制不同外观
@@ -142,7 +179,6 @@ class Fish {
         
         switch(this.fishType.pattern) {
             case 'stripes':
-                // 小丑鱼条纹
                 for (let i = -this.size * 0.8; i < this.size * 0.8; i += this.size * 0.4) {
                     ctx.beginPath();
                     ctx.moveTo(i, -this.size * 0.7);
@@ -151,7 +187,6 @@ class Fish {
                 }
                 break;
             case 'spots':
-                // 热带鱼斑点
                 for (let i = 0; i < 5; i++) {
                     ctx.beginPath();
                     ctx.arc(-this.size * 0.5 + i * this.size * 0.3, 
@@ -162,7 +197,6 @@ class Fish {
                 }
                 break;
             case 'scales':
-                // 鲑鱼鳞片
                 for (let i = -this.size; i < this.size; i += this.size * 0.3) {
                     ctx.beginPath();
                     ctx.arc(i, 0, this.size * 0.4, -Math.PI * 0.3, Math.PI * 0.3);
@@ -170,7 +204,6 @@ class Fish {
                 }
                 break;
             case 'whale':
-                // 鲸鱼纹理
                 ctx.fillStyle = 'rgba(255,255,255,0.3)';
                 for (let i = 0; i < 3; i++) {
                     ctx.beginPath();
@@ -181,7 +214,6 @@ class Fish {
                 }
                 break;
             default:
-                // 默认鳞片
                 for (let i = -this.size; i < this.size; i += this.size * 0.3) {
                     ctx.beginPath();
                     ctx.arc(i, 0, this.size * 0.4, -Math.PI * 0.3, Math.PI * 0.3);
@@ -202,14 +234,12 @@ class Fish {
     }
 
     drawFishFins(ctx) {
-        // 背鳍
         ctx.beginPath();
         ctx.moveTo(-this.size * 0.5, -this.size * 0.8);
         ctx.quadraticCurveTo(0, -this.size * (1.2 + this.size / 100), this.size * 0.5, -this.size * 0.8);
         ctx.fillStyle = this.fishType ? this.fishType.color : this.color;
         ctx.fill();
 
-        // 腹鳍
         ctx.beginPath();
         ctx.moveTo(-this.size * 0.3, this.size * 0.7);
         ctx.lineTo(0, this.size * (0.9 + this.size / 150));
@@ -228,7 +258,6 @@ class Fish {
         ctx.fillStyle = 'black';
         ctx.fill();
         
-        // 玩家额外眼白高光
         if (this.isPlayer) {
             ctx.beginPath();
             ctx.arc(this.size * 0.95, -this.size * 0.35, this.size * 0.05, 0, Math.PI * 2);
@@ -297,7 +326,7 @@ class Bubble {
         this.wobble += 0.05;
         if (this.y < -10) {
             this.y = canvasHeight + 10;
-            this.x = Math.random() * 900;
+            this.x = Math.random() * canvasWidth;
         }
     }
 
@@ -328,10 +357,9 @@ class Game {
         this.bubbles = [];
         this.score = 0;
         this.isRunning = false;
-        this.mouseX = 450;
-        this.mouseY = 300;
+        this.mouseX = 0;
+        this.mouseY = 0;
         
-        // 摄像机系统
         this.camera = {
             x: 0,
             y: 0,
@@ -340,41 +368,47 @@ class Game {
         };
 
         this.init();
+        this.resize();
+        
+        // 监听窗口大小变化
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    resize() {
+        // 全屏自适应
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.mouseX = this.canvas.width / 2;
+        this.mouseY = this.canvas.height / 2;
     }
 
     init() {
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 30; i++) {
             this.bubbles.push(new Bubble(this.canvas.width, this.canvas.height));
         }
 
         this.canvas.addEventListener('mousemove', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            this.mouseX = e.clientX - rect.left;
-            this.mouseY = e.clientY - rect.top;
+            this.mouseX = e.clientX;
+            this.mouseY = e.clientY;
         });
 
         this.canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            const rect = this.canvas.getBoundingClientRect();
-            this.mouseX = e.touches[0].clientX - rect.left;
-            this.mouseY = e.touches[0].clientY - rect.top;
+            this.mouseX = e.touches[0].clientX;
+            this.mouseY = e.touches[0].clientY;
         });
     }
 
     updateCamera() {
         if (!this.player) return;
         
-        // 根据玩家大小动态调整摄像机缩放
-        // 玩家越大，缩放越小（视野越大）
         const baseScale = 1;
-        const minScale = 0.4; // 最大时缩小到 40%
+        const minScale = 0.4;
         this.camera.targetScale = baseScale - (this.player.size - 15) / 65 * (baseScale - minScale);
         this.camera.targetScale = Math.max(minScale, Math.min(baseScale, this.camera.targetScale));
         
-        // 平滑过渡
         this.camera.scale += (this.camera.targetScale - this.camera.scale) * 0.05;
         
-        // 摄像机跟随玩家
         const targetX = this.canvas.width / 2 - this.player.x * this.camera.scale;
         const targetY = this.canvas.height / 2 - this.player.y * this.camera.scale;
         this.camera.x += (targetX - this.camera.x) * 0.1;
@@ -382,9 +416,9 @@ class Game {
     }
 
     start() {
-        this.player = new Fish(450, 300, 15, 3, true);
-        this.player.targetX = 450;
-        this.player.targetY = 300;
+        this.player = new Fish(this.canvas.width / 2, this.canvas.height / 2, 15, 3, true);
+        this.player.targetX = this.mouseX;
+        this.player.targetY = this.mouseY;
         this.enemies = [];
         this.particles = [];
         this.score = 0;
@@ -397,25 +431,23 @@ class Game {
         this.updateUI();
         this.loop();
         
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 5; i++) {
             setTimeout(() => {
                 if (this.isRunning) {
-                    const size = 8 + Math.random() * 7;
-                    const y = Math.random() * (this.canvas.height - 100) + 50;
-                    const enemy = new Fish(
-                        Math.random() > 0.5 ? -50 : this.canvas.width + 50,
-                        y,
-                        size,
-                        1 + Math.random() * 2,
-                        false
-                    );
-                    enemy.direction = Math.random() > 0.5 ? 1 : -1;
-                    this.enemies.push(enemy);
+                    this.spawnInitialEnemy();
                 }
-            }, i * 500);
+            }, i * 400);
         }
         
         this.spawnEnemy();
+    }
+
+    spawnInitialEnemy() {
+        const size = 8 + Math.random() * 7;
+        const x = Math.random() * this.canvas.width;
+        const y = Math.random() * this.canvas.height;
+        const enemy = new Fish(x, y, size, 1 + Math.random() * 2, false);
+        this.enemies.push(enemy);
     }
 
     restart() {
@@ -436,12 +468,29 @@ class Game {
             size = Math.min(size, 80);
         }
         
-        const y = Math.random() * (this.canvas.height - 100) + 50;
-        const direction = Math.random() > 0.5 ? 1 : -1;
-        const x = direction === 1 ? -50 : this.canvas.width + 50;
+        // 从屏幕边缘随机位置生成
+        let x, y;
+        const edge = Math.floor(Math.random() * 4); // 0:上 1:右 2:下 3:左
+        switch(edge) {
+            case 0: // 上
+                x = Math.random() * this.canvas.width;
+                y = -50;
+                break;
+            case 1: // 右
+                x = this.canvas.width + 50;
+                y = Math.random() * this.canvas.height;
+                break;
+            case 2: // 下
+                x = Math.random() * this.canvas.width;
+                y = this.canvas.height + 50;
+                break;
+            case 3: // 左
+                x = -50;
+                y = Math.random() * this.canvas.height;
+                break;
+        }
         
         const enemy = new Fish(x, y, size, 1 + Math.random() * 2, false);
-        enemy.direction = direction;
         this.enemies.push(enemy);
 
         let nextSpawn = 1500 - Math.min(800, this.score * 5);
@@ -496,31 +545,34 @@ class Game {
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // 海底
+        const bottomY = this.canvas.height - 50;
         this.ctx.fillStyle = '#1a1a2e';
         this.ctx.beginPath();
-        this.ctx.ellipse(450, 600, 600, 100, 0, 0, Math.PI * 2);
+        this.ctx.ellipse(this.canvas.width / 2, bottomY + 100, this.canvas.width / 1.5, 100, 0, 0, Math.PI * 2);
         this.ctx.fill();
 
+        // 海草
         this.ctx.fillStyle = '#2d5016';
-        for (let i = 0; i < 10; i++) {
+        const grassCount = Math.floor(this.canvas.width / 100);
+        for (let i = 0; i < grassCount; i++) {
             const x = i * 100 + 50;
             const height = 50 + Math.sin(Date.now() / 1000 + i) * 20;
             this.ctx.beginPath();
-            this.ctx.moveTo(x, 600);
-            this.ctx.quadraticCurveTo(x + 20, 600 - height / 2, x, 600 - height);
-            this.ctx.quadraticCurveTo(x - 20, 600 - height / 2, x, 600);
+            this.ctx.moveTo(x, bottomY);
+            this.ctx.quadraticCurveTo(x + 20, bottomY - height / 2, x, bottomY - height);
+            this.ctx.quadraticCurveTo(x - 20, bottomY - height / 2, x, bottomY);
             this.ctx.fill();
         }
     }
 
     drawFishTypeLegend() {
-        // 显示当前鱼类名称
         if (this.player && this.player.fishType) {
             this.ctx.fillStyle = 'white';
             this.ctx.font = 'bold 16px PingFang SC';
             this.ctx.textAlign = 'left';
             this.ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 4;
+            this.ctx.shadowBlur = 4;
             this.ctx.fillText(`🐟 ${this.player.fishType.name}`, 20, 50);
             this.ctx.shadowBlur = 0;
         }
@@ -531,10 +583,8 @@ class Game {
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // 更新摄像机
         this.updateCamera();
 
-        // 应用摄像机变换
         this.ctx.save();
         this.ctx.translate(this.camera.x, this.camera.y);
         this.ctx.scale(this.camera.scale, this.camera.scale);
@@ -569,7 +619,6 @@ class Game {
 
         this.ctx.restore();
 
-        // UI 绘制（不受摄像机影响）
         this.drawFishTypeLegend();
 
         requestAnimationFrame(() => this.loop());
