@@ -141,8 +141,10 @@ class Fish {
     }
 
     grow(amount) {
-        this.size = Math.min(80, this.size + amount);
-        this.speed = 2 + (30 / this.size);
+        // 优化：成长速度加快，从 0.05 提升到 0.15
+        this.size = Math.min(80, this.size + amount * 3);
+        // 优化：速度衰减更平缓
+        this.speed = 3 + (20 / this.size);
     }
 }
 
@@ -263,6 +265,25 @@ class Game {
         this.updateUI();
         this.loop();
         
+        // 优化：初始生成几条小鱼，避免开局被秒
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+                if (this.isRunning) {
+                    const size = 8 + Math.random() * 7;
+                    const y = Math.random() * (this.canvas.height - 100) + 50;
+                    const enemy = new Fish(
+                        Math.random() > 0.5 ? -50 : this.canvas.width + 50,
+                        y,
+                        size,
+                        1 + Math.random() * 2,
+                        false
+                    );
+                    enemy.direction = Math.random() > 0.5 ? 1 : -1;
+                    this.enemies.push(enemy);
+                }
+            }, i * 500);
+        }
+        
         // 定期生成敌人
         this.spawnEnemy();
     }
@@ -274,7 +295,21 @@ class Game {
     spawnEnemy() {
         if (!this.isRunning) return;
 
-        const size = Math.random() * 60 + 5;
+        // 优化：根据玩家大小生成敌人，确保大部分鱼比玩家小
+        const playerSize = this.player ? this.player.size : 15;
+        
+        // 70% 生成比玩家小的鱼，30% 生成比玩家大的鱼
+        let size;
+        if (Math.random() < 0.7) {
+            // 小鱼：玩家大小的 30%-90%
+            size = Math.random() * (playerSize * 0.6) + playerSize * 0.3;
+            size = Math.max(5, Math.min(size, playerSize * 0.9));
+        } else {
+            // 大鱼：玩家大小的 110%-200%
+            size = Math.random() * (playerSize * 0.9) + playerSize * 1.1;
+            size = Math.min(size, 80);
+        }
+        
         const y = Math.random() * (this.canvas.height - 100) + 50;
         const direction = Math.random() > 0.5 ? 1 : -1;
         const x = direction === 1 ? -50 : this.canvas.width + 50;
@@ -283,9 +318,9 @@ class Game {
         enemy.direction = direction;
         this.enemies.push(enemy);
 
-        // 难度递增
-        let nextSpawn = 2000 - Math.min(1500, this.score * 10);
-        nextSpawn = Math.max(500, nextSpawn);
+        // 优化：生成速度更快，但难度递增更平缓
+        let nextSpawn = 1500 - Math.min(800, this.score * 5);
+        nextSpawn = Math.max(700, nextSpawn);
         
         setTimeout(() => this.spawnEnemy(), nextSpawn);
     }
