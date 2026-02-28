@@ -665,19 +665,27 @@ class Game {
             this.bubbles.push(new Bubble(this.canvas.width, this.canvas.height));
         }
 
-        this.canvas.addEventListener('mousemove', (e) => {
-            e.preventDefault();
-            this.mouseX = e.clientX;
-            this.mouseY = e.clientY;
+        // 全局鼠标监听（即使移出 canvas 也能跟踪）
+        document.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouseX = e.clientX - rect.left;
+            this.mouseY = e.clientY - rect.top;
+            
+            // 限制在画布范围内
+            this.mouseX = Math.max(0, Math.min(this.canvas.width, this.mouseX));
+            this.mouseY = Math.max(0, Math.min(this.canvas.height, this.mouseY));
         });
 
         this.canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            this.mouseX = e.touches[0].clientX;
-            this.mouseY = e.touches[0].clientY;
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouseX = e.touches[0].clientX - rect.left;
+            this.mouseY = e.touches[0].clientY - rect.top;
+            
+            this.mouseX = Math.max(0, Math.min(this.canvas.width, this.mouseX));
+            this.mouseY = Math.max(0, Math.min(this.canvas.height, this.mouseY));
         });
         
-        // 防止右键菜单
         this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     }
 
@@ -717,11 +725,16 @@ class Game {
         this.startScreen.classList.add('hidden');
         this.gameOverScreen.classList.add('hidden');
         
-        try {
-            this.soundManager.startBGM();
-        } catch (e) {
-            console.log('BGM start failed:', e);
-        }
+        // 延迟启动 BGM，避免卡顿
+        setTimeout(() => {
+            try {
+                if (this.soundManager.enabled && this.isRunning) {
+                    this.soundManager.startBGM();
+                }
+            } catch (e) {
+                console.log('BGM start failed:', e);
+            }
+        }, 500);
         
         this.updateUI();
         this.loop();
