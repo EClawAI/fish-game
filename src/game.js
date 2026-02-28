@@ -201,6 +201,7 @@ class Fish {
 
     draw(ctx, cameraScale = 1) {
         ctx.save();
+        ctx.globalAlpha = 1.0; // 确保每次绘制前透明度为 1
         ctx.translate(this.x, this.y);
         
         const drawAngle = this.isPlayer ? 0 : this.angle;
@@ -222,6 +223,7 @@ class Fish {
             ctx.fill();
             
             ctx.rotate(-drawAngle);
+            ctx.globalAlpha = 1.0; // 绘制文字前重置透明度
             ctx.fillStyle = 'white';
             ctx.font = 'bold 14px PingFang SC';
             ctx.textAlign = 'center';
@@ -242,11 +244,9 @@ class Fish {
     }
 
     drawSpecialEffect(ctx) {
-        // 特殊鱼类光环
         const time = Date.now() / 200;
         
         if (this.specialType === 'golden') {
-            // 金色光芒
             const gradient = ctx.createRadialGradient(0, 0, this.size, 0, 0, this.size * 2.5);
             gradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
             gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
@@ -255,32 +255,32 @@ class Fish {
             ctx.fillStyle = gradient;
             ctx.fill();
             
-            // 闪烁星星
             if (Math.sin(time * 2) > 0.7) {
+                ctx.globalAlpha = 1.0;
                 ctx.fillStyle = '#FFF';
                 ctx.beginPath();
                 ctx.arc(Math.sin(time) * this.size * 1.5, Math.cos(time) * this.size * 1.5, 3, 0, Math.PI * 2);
                 ctx.fill();
             }
         } else if (this.specialType === 'rainbow') {
-            // 彩虹色
             const hue = (this.rainbowAngle * 50) % 360;
+            ctx.globalAlpha = 0.5;
             ctx.strokeStyle = `hsla(${hue}, 100%, 50%, 0.5)`;
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.arc(0, 0, this.size * 1.8, 0, Math.PI * 2);
             ctx.stroke();
+            ctx.globalAlpha = 1.0;
         } else if (this.specialType === 'ghost') {
-            // 幽灵半透明
             ctx.globalAlpha = 0.6 + Math.sin(time) * 0.2;
             
-            // 小幽灵粒子
             if (Math.random() < 0.1) {
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
                 ctx.beginPath();
                 ctx.arc(this.size * 2, -this.size * 2, 5, 0, Math.PI * 2);
                 ctx.fill();
             }
+            ctx.globalAlpha = 1.0;
         }
     }
 
@@ -955,6 +955,21 @@ class Game {
         }
     }
 
+    drawParticles() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.update();
+            if (p.life <= 0) {
+                this.particles.splice(i, 1);
+            } else {
+                this.ctx.save();
+                this.ctx.globalAlpha = p.life;
+                p.draw(this.ctx);
+                this.ctx.restore();
+            }
+        }
+    }
+
     checkCollisions() {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
@@ -1085,18 +1100,24 @@ class Game {
             }
         }
 
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            this.particles[i].update();
-            if (this.particles[i].life <= 0) {
-                this.particles.splice(i, 1);
-            }
-        }
-
         this.checkCollisions();
 
-        this.enemies.forEach(enemy => enemy.draw(this.ctx, 1));
-        this.particles.forEach(particle => particle.draw(this.ctx));
+        // 绘制敌人
+        this.enemies.forEach(enemy => {
+            this.ctx.save();
+            this.ctx.globalAlpha = 1.0;
+            enemy.draw(this.ctx, 1);
+            this.ctx.restore();
+        });
+        
+        // 绘制粒子（带透明度）
+        this.drawParticles();
+        
+        // 绘制玩家
+        this.ctx.save();
+        this.ctx.globalAlpha = 1.0;
         this.player.draw(this.ctx, 1);
+        this.ctx.restore();
 
         this.ctx.restore();
 
