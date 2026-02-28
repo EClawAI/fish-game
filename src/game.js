@@ -19,7 +19,7 @@ class Fish {
         this.speed = speed;
         this.isPlayer = isPlayer;
         this.direction = Math.random() > 0.5 ? 1 : -1;
-        this.angle = Math.random() * Math.PI * 2; // 游动角度
+        this.angle = Math.random() * Math.PI * 2;
         this.targetAngle = this.angle;
         this.color = this.randomColor();
         this.tailAngle = 0;
@@ -27,7 +27,13 @@ class Fish {
         this.fishType = this.getFishType();
         this.glowAngle = 0;
         this.changeDirTimer = 0;
-        this.changeDirInterval = 60 + Math.random() * 60; // 随机改变方向间隔
+        this.changeDirInterval = 60 + Math.random() * 60;
+        
+        // 生存周期系统
+        this.birthTime = Date.now();
+        this.maxLifetime = 15000 + Math.random() * 15000; // 15-30 秒
+        this.age = 0;
+        this.isDying = false;
     }
 
     getFishType() {
@@ -52,6 +58,14 @@ class Fish {
     }
 
     update(canvasWidth, canvasHeight, player) {
+        // 更新年龄
+        this.age = Date.now() - this.birthTime;
+        
+        // 检查是否超过生命周期
+        if (this.age > this.maxLifetime * 0.8) {
+            this.isDying = true;
+        }
+        
         if (this.isPlayer) {
             const dx = player.targetX - this.x;
             const dy = player.targetY - this.y;
@@ -66,6 +80,9 @@ class Fish {
         } else {
             // AI 鱼：随机游动
             this.changeDirTimer++;
+            
+            // 老年鱼游动变慢
+            const ageFactor = Math.max(0.3, 1 - (this.age / this.maxLifetime) * 0.5);
             
             // 定期改变方向
             if (this.changeDirTimer > this.changeDirInterval) {
@@ -89,8 +106,8 @@ class Fish {
             this.angle += angleDiff * 0.05;
             
             // 根据角度移动
-            this.x += Math.cos(this.angle) * this.speed;
-            this.y += Math.sin(this.angle) * this.speed;
+            this.x += Math.cos(this.angle) * this.speed * ageFactor;
+            this.y += Math.sin(this.angle) * this.speed * ageFactor;
             
             // 根据游动方向设置朝向
             this.direction = Math.cos(this.angle) > 0 ? 1 : -1;
@@ -99,21 +116,70 @@ class Fish {
             const margin = this.size * 2;
             if (this.x < -margin) {
                 this.x = canvasWidth + margin;
-                this.targetAngle = Math.random() * Math.PI - Math.PI / 2; // 向右
+                this.targetAngle = Math.random() * Math.PI - Math.PI / 2;
             } else if (this.x > canvasWidth + margin) {
                 this.x = -margin;
-                this.targetAngle = Math.random() * Math.PI + Math.PI / 2; // 向左
+                this.targetAngle = Math.random() * Math.PI + Math.PI / 2;
             }
             if (this.y < -margin) {
                 this.y = canvasHeight + margin;
-                this.targetAngle = Math.random() * Math.PI; // 向下
+                this.targetAngle = Math.random() * Math.PI;
             } else if (this.y > canvasHeight + margin) {
                 this.y = -margin;
-                this.targetAngle = Math.random() * Math.PI + Math.PI; // 向上
+                this.targetAngle = Math.random() * Math.PI + Math.PI;
             }
         }
 
         this.tailAngle += this.tailSpeed;
+    }
+
+    shouldRemove() {
+        // 超过生命周期应该移除
+        return this.age > this.maxLifetime;
+    }
+
+    draw(ctx, cameraScale = 1) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        
+        // 老年鱼半透明效果
+        if (this.isDying && !this.isPlayer) {
+            ctx.globalAlpha = 1 - ((this.age - this.maxLifetime * 0.8) / (this.maxLifetime * 0.2));
+        }
+        
+        const drawAngle = this.isPlayer ? 0 : this.angle;
+        ctx.rotate(drawAngle);
+        
+        if (this.isPlayer) {
+            const glowSize = this.size * 2.5 + Math.sin(this.glowAngle) * 3;
+            const gradient = ctx.createRadialGradient(0, 0, this.size * 1.5, 0, 0, glowSize);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+            gradient.addColorStop(0.5, 'rgba(100, 200, 255, 0.15)');
+            gradient.addColorStop(1, 'rgba(100, 200, 255, 0)');
+            ctx.beginPath();
+            ctx.arc(0, 0, glowSize, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            ctx.rotate(-drawAngle);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 14px PingFang SC';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur = 4;
+            ctx.fillText('👤 你', 0, -this.size * 2.5);
+            ctx.shadowBlur = 0;
+            ctx.rotate(drawAngle);
+        }
+        
+        this.drawFishBody(ctx);
+        this.drawFishPattern(ctx);
+        this.drawFishTail(ctx);
+        this.drawFishFins(ctx);
+        this.drawFishEye(ctx);
+
+        ctx.restore();
+        ctx.globalAlpha = 1;
     }
 
     draw(ctx, cameraScale = 1) {
@@ -457,6 +523,14 @@ class Game {
     spawnEnemy() {
         if (!this.isRunning) return;
 
+        // 数量控制：最大敌人数量
+        const maxEnemies = 20 + Math.floor(this.score / 100) * 5;
+        if (this.enemies.length >= maxEnemies) {
+            // 超过最大数量，延迟生成
+            setTimeout(() => this.spawnEnemy(), 2000);
+            return;
+        }
+
         const playerSize = this.player ? this.player.size : 15;
         
         let size;
@@ -470,24 +544,12 @@ class Game {
         
         // 从屏幕边缘随机位置生成
         let x, y;
-        const edge = Math.floor(Math.random() * 4); // 0:上 1:右 2:下 3:左
+        const edge = Math.floor(Math.random() * 4);
         switch(edge) {
-            case 0: // 上
-                x = Math.random() * this.canvas.width;
-                y = -50;
-                break;
-            case 1: // 右
-                x = this.canvas.width + 50;
-                y = Math.random() * this.canvas.height;
-                break;
-            case 2: // 下
-                x = Math.random() * this.canvas.width;
-                y = this.canvas.height + 50;
-                break;
-            case 3: // 左
-                x = -50;
-                y = Math.random() * this.canvas.height;
-                break;
+            case 0: x = Math.random() * this.canvas.width; y = -50; break;
+            case 1: x = this.canvas.width + 50; y = Math.random() * this.canvas.height; break;
+            case 2: x = Math.random() * this.canvas.width; y = this.canvas.height + 50; break;
+            case 3: x = -50; y = Math.random() * this.canvas.height; break;
         }
         
         const enemy = new Fish(x, y, size, 1 + Math.random() * 2, false);
@@ -529,6 +591,10 @@ class Game {
     updateUI() {
         this.scoreEl.textContent = this.score;
         this.sizeEl.textContent = Math.floor(this.player.size);
+        // 显示当前鱼群数量
+        // this.ctx.fillStyle = 'white';
+        // this.ctx.font = '14px PingFang SC';
+        // this.ctx.fillText(`鱼群：${this.enemies.length}`, 20, 80);
     }
 
     gameOver() {
@@ -600,9 +666,16 @@ class Game {
         this.player.targetY = this.mouseY;
         this.player.update(this.canvas.width / this.camera.scale, this.canvas.height / this.camera.scale, this.player);
 
-        this.enemies.forEach(enemy => {
+        // 更新敌人并移除超时的鱼
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            const enemy = this.enemies[i];
             enemy.update(this.canvas.width / this.camera.scale, this.canvas.height / this.camera.scale, this.player);
-        });
+            
+            // 移除超过生命周期的鱼
+            if (enemy.shouldRemove()) {
+                this.enemies.splice(i, 1);
+            }
+        }
 
         for (let i = this.particles.length - 1; i >= 0; i--) {
             this.particles[i].update();
