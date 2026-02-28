@@ -126,15 +126,26 @@ class Fish {
         }
         
         if (this.isPlayer) {
+            // 玩家直接移动到鼠标位置（带平滑）
             const dx = player.targetX - this.x;
             const dy = player.targetY - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > 5) {
-                this.x += (dx / dist) * this.speed * 2;
-                this.y += (dy / dist) * this.speed * 2;
+            
+            if (dist > 10) {
+                // 快速跟随鼠标
+                const moveSpeed = Math.min(dist * 0.15, this.speed * 3);
+                this.x += (dx / dist) * moveSpeed;
+                this.y += (dy / dist) * moveSpeed;
+            } else {
+                // 接近鼠标时微调
+                this.x += dx * 0.1;
+                this.y += dy * 0.1;
             }
-            if (dx > 0) this.direction = 1;
-            else if (dx < 0) this.direction = -1;
+            
+            // 根据移动方向设置朝向
+            if (Math.abs(dx) > 5) {
+                this.direction = dx > 0 ? 1 : -1;
+            }
             this.glowAngle += 0.1;
         } else {
             this.changeDirTimer++;
@@ -515,51 +526,75 @@ class SoundManager {
         if (!this.enabled || !this.audioContext || this.bgmPlaying) return;
         
         this.bgmPlaying = true;
-        
-        // 海洋气泡声 - 布鲁布鲁效果
         const now = this.audioContext.currentTime;
-        const bubbleFreqs = [200, 250, 320];
         
-        this.bgmOscillators = bubbleFreqs.map((freq, i) => {
+        // 创建海浪声（粉红噪声模拟）
+        this.bgmGain = this.audioContext.createGain();
+        this.bgmGain.gain.value = 0.05;
+        this.bgmGain.connect(this.audioContext.destination);
+        
+        // 使用多个振荡器模拟海浪
+        const waveFreqs = [80, 120, 180, 250, 350];
+        
+        this.bgmOscillators = waveFreqs.map((freq, i) => {
             const osc = this.audioContext.createOscillator();
             const gain = this.audioContext.createGain();
             
             osc.frequency.value = freq;
             osc.type = 'sine';
             
-            // LFO 调制产生"布鲁布鲁"效果
+            // 缓慢的音量变化模拟海浪起伏
             const lfo = this.audioContext.createOscillator();
-            lfo.frequency.value = 3 + i;
+            lfo.frequency.value = 0.1 + i * 0.05; // 非常慢的调制
             const lfoGain = this.audioContext.createGain();
-            lfoGain.gain.value = 0.5;
+            lfoGain.gain.value = 0.3;
             
             lfo.connect(lfoGain);
             lfoGain.connect(gain.gain);
             
-            gain.gain.value = 0.03;
+            gain.gain.value = 0.02;
             
             osc.connect(gain);
-            gain.connect(this.audioContext.destination);
+            gain.connect(this.bgmGain);
             
-            osc.start(now + i * 0.5);
-            lfo.start(now + i * 0.5);
+            osc.start(now);
+            lfo.start(now);
             
             return { osc, lfo, gain };
         });
+        
+        // 添加低频隆隆声（深海效果）
+        const deepOsc = this.audioContext.createOscillator();
+        const deepGain = this.audioContext.createGain();
+        deepOsc.frequency.value = 40;
+        deepOsc.type = 'sine';
+        deepGain.gain.value = 0.015;
+        deepOsc.connect(deepGain);
+        deepGain.connect(this.bgmGain);
+        deepOsc.start(now);
+        
+        this.bgmOscillators.push({ osc: deepOsc, lfo: null, gain: deepGain });
     }
 
     stopBGM() {
+        if (!this.audioContext) return;
+        
         const now = this.audioContext.currentTime;
+        
+        if (this.bgmGain) {
+            this.bgmGain.gain.exponentialRampToValueAtTime(0.001, now + 1);
+        }
         
         this.bgmOscillators.forEach(({ osc, lfo }) => {
             try {
-                osc.stop(now + 0.3);
-                lfo.stop(now + 0.3);
+                osc.stop(now + 1);
+                if (lfo) lfo.stop(now + 1);
             } catch (e) {}
         });
         
         this.bgmPlaying = false;
         this.bgmOscillators = [];
+        this.bgmGain = null;
     }
 
     toggle() {
@@ -716,10 +751,43 @@ class Game {
         
         this.camera.scale += (this.camera.targetScale - this.camera.scale) * 0.05;
         
-        const targetX = this.canvas.width / 2 - this.player.x * this.camera.scale;
-        const targetY = this.canvas.height / 2 - this.player.y * this.camera.scale;
-        this.camera.x += (targetX - this.camera.x) * 0.1;
-        this.camera.y += (targetY - this.camera.y) * 0.1;
+        // 只有当玩家接近边界时才移动摄像机
+        const marginX = this.canvas.width * 0.3;
+        const marginY = this.canvas.height * 0.3;
+        
+        let targetX = this.camera.x;
+        let targetY = this.camera.y;
+        
+        // 玩家超出左边界
+        if (this.player.x * this.camera.scale < marginX) {
+            targetX = marginX - this.player.x * this.camera.scale;
+        }
+        // 玩家超出右边界
+        else if (this.player.x * this.camera.scale > this.canvas.width - marginX) {
+            targetX = this.canvas.width - marginX - this.player.x * this.camera.scale;
+        }
+        
+        // 玩家超出上边界
+        if (this.player.y * this.camera.scale < marginY) {
+            targetY = marginY - this.player.y * this.camera.scale;
+        }
+        // 玩家超出下边界
+        else if (this.player.y * this.camera.scale > this.canvas.height - marginY) {
+            targetY = this.canvas.height - marginY - this.player.y * this.camera.scale;
+        }
+        
+        // 平滑移动摄像机
+        this.camera.x += (targetX - this.camera.x) * 0.05;
+        this.camera.y += (targetY - this.camera.y) * 0.05;
+        
+        // 限制摄像机范围
+        const maxX = 0;
+        const maxY = 0;
+        const minX = -this.canvas.width * 0.5;
+        const minY = -this.canvas.height * 0.5;
+        
+        this.camera.x = Math.max(minX, Math.min(maxX, this.camera.x));
+        this.camera.y = Math.max(minY, Math.min(maxY, this.camera.y));
     }
 
     start() {
