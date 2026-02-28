@@ -190,19 +190,16 @@ class Fish {
 
     draw(ctx, cameraScale = 1) {
         ctx.save();
+        ctx.translate(this.x, this.y);
         
-        // 保存当前透明度
-        const savedAlpha = ctx.globalAlpha;
-        
-        // 老年鱼半透明
         if (this.isDying && !this.isPlayer && !this.isSpecial) {
-            ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 100) * 0.2;
+            ctx.globalAlpha = 1 - ((this.age - this.maxLifetime * 0.8) / (this.maxLifetime * 0.2));
         }
         
-        ctx.translate(this.x, this.y);
         const drawAngle = this.isPlayer ? 0 : this.angle;
         ctx.rotate(drawAngle);
         
+        // 特殊鱼类效果
         if (this.isSpecial) {
             this.drawSpecialEffect(ctx);
         }
@@ -219,7 +216,6 @@ class Fish {
             ctx.fill();
             
             ctx.rotate(-drawAngle);
-            ctx.globalAlpha = 1;
             ctx.fillStyle = 'white';
             ctx.font = 'bold 14px PingFang SC';
             ctx.textAlign = 'center';
@@ -237,7 +233,7 @@ class Fish {
         this.drawFishEye(ctx);
 
         ctx.restore();
-        ctx.globalAlpha = savedAlpha;
+        ctx.restore(); // 已在 draw 函数末尾恢复
     }
 
     drawSpecialEffect(ctx) {
@@ -516,49 +512,36 @@ class SoundManager {
         
         this.bgmPlaying = true;
         
-        // 海洋气泡声 - 布鲁布鲁效果
-        const now = this.audioContext.currentTime;
-        const bubbleFreqs = [200, 250, 320];
-        
-        this.bgmOscillators = bubbleFreqs.map((freq, i) => {
+        // 简单的海洋氛围音（低频波浪声）
+        const createDrone = (freq) => {
             const osc = this.audioContext.createOscillator();
             const gain = this.audioContext.createGain();
-            
-            osc.frequency.value = freq;
-            osc.type = 'sine';
-            
-            // LFO 调制产生"布鲁布鲁"效果
-            const lfo = this.audioContext.createOscillator();
-            lfo.frequency.value = 3 + i;
-            const lfoGain = this.audioContext.createGain();
-            lfoGain.gain.value = 0.5;
-            
-            lfo.connect(lfoGain);
-            lfoGain.connect(gain.gain);
-            
-            gain.gain.value = 0.03;
             
             osc.connect(gain);
             gain.connect(this.audioContext.destination);
             
-            osc.start(now + i * 0.5);
-            lfo.start(now + i * 0.5);
+            osc.frequency.value = freq;
+            osc.type = 'sine';
             
-            return { osc, lfo, gain };
-        });
+            gain.gain.value = 0.05;
+            
+            osc.start();
+            return { osc, gain };
+        };
+        
+        this.bgmOscillators = [
+            createDrone(110), // A2
+            createDrone(164.81), // E3
+            createDrone(196) // G3
+        ];
     }
 
     stopBGM() {
-        const now = this.audioContext.currentTime;
-        
-        this.bgmOscillators.forEach(({ osc, lfo }) => {
-            try {
-                osc.stop(now + 0.3);
-                lfo.stop(now + 0.3);
-            } catch (e) {}
-        });
-        
         this.bgmPlaying = false;
+        this.bgmOscillators.forEach(({ osc, gain }) => {
+            gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.5);
+            osc.stop(this.audioContext.currentTime + 0.5);
+        });
         this.bgmOscillators = [];
     }
 
