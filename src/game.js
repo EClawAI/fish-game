@@ -92,13 +92,16 @@ class Fish {
             const dy = player.targetY - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
+            // 鱼越大速度越慢
+            const sizeFactor = CONFIG.PLAYER_START_SIZE / this.size;
+            
             if (dist > 10) {
-                const moveSpeed = Math.min(dist * 0.15, this.speed * 3);
+                const moveSpeed = Math.min(dist * 0.15, this.speed * 2 * sizeFactor);
                 this.x += (dx / dist) * moveSpeed;
                 this.y += (dy / dist) * moveSpeed;
             } else {
-                this.x += dx * 0.1;
-                this.y += dy * 0.1;
+                this.x += dx * 0.1 * sizeFactor;
+                this.y += dy * 0.1 * sizeFactor;
             }
             
             if (Math.abs(dx) > 5) this.direction = dx > 0 ? 1 : -1;
@@ -136,8 +139,9 @@ class Fish {
                 }
             }
             
-            // 降低基础速度
-            const moveSpeed = this.speed * 0.4 * ageFactor;
+            // 鱼越大速度越慢，基础速度乘以 size 反比系数
+            const sizeFactor = 15 / this.size; // 以 15 为基准
+            const moveSpeed = this.speed * 0.5 * sizeFactor * ageFactor;
             this.x += Math.cos(this.angle) * moveSpeed;
             this.y += Math.sin(this.angle) * moveSpeed;
             this.direction = Math.cos(this.angle) > 0 ? 1 : -1;
