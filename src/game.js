@@ -636,12 +636,35 @@ class Game {
         this.camera.targetScale = Math.max(minScale, Math.min(baseScale, this.camera.targetScale));
         this.camera.scale += (this.camera.targetScale - this.camera.scale) * 0.05;
         
-        // 摄像机始终跟随玩家，保持玩家在屏幕中心
-        const targetX = this.player.x * this.camera.scale - this.canvas.width / 2;
-        const targetY = this.player.y * this.camera.scale - this.canvas.height / 2;
+        // 计算玩家在屏幕上的位置
+        const playerScreenX = this.player.x * this.camera.scale - this.camera.x;
+        const playerScreenY = this.player.y * this.camera.scale - this.camera.y;
         
-        this.camera.x += (targetX - this.camera.x) * 0.1;
-        this.camera.y += (targetY - this.camera.y) * 0.1;
+        // 只有当玩家靠近屏幕边缘时才移动摄像机
+        const edgeMargin = this.canvas.width * 0.3; // 屏幕边缘 30% 区域
+        let targetX = this.camera.x;
+        let targetY = this.camera.y;
+        
+        // 玩家靠近左边缘 - 摄像机向左移
+        if (playerScreenX < edgeMargin) {
+            targetX -= (edgeMargin - playerScreenX) * 0.5;
+        }
+        // 玩家靠近右边缘 - 摄像机向右移
+        else if (playerScreenX > this.canvas.width - edgeMargin) {
+            targetX += (playerScreenX - (this.canvas.width - edgeMargin)) * 0.5;
+        }
+        
+        // 玩家靠近上边缘 - 摄像机向上移
+        if (playerScreenY < edgeMargin) {
+            targetY -= (edgeMargin - playerScreenY) * 0.5;
+        }
+        // 玩家靠近下边缘 - 摄像机向下移
+        else if (playerScreenY > this.canvas.height - edgeMargin) {
+            targetY += (playerScreenY - (this.canvas.height - edgeMargin)) * 0.5;
+        }
+        
+        this.camera.x += (targetX - this.camera.x) * 0.08;
+        this.camera.y += (targetY - this.camera.y) * 0.08;
         
         // 限制摄像机边界
         const maxX = this.worldWidth * this.camera.scale - this.canvas.width;
