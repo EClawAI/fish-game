@@ -39,7 +39,7 @@ const SPECIAL_FISH = {
 
 // ==================== 鱼类 ====================
 class Fish {
-    constructor(x, y, size, speed, isPlayer = false, specialType = null) {
+    constructor(x, y, size, speed, isPlayer = false, specialType = null, angle = null) {
         this.x = x;
         this.y = y;
         this.size = size;
@@ -47,7 +47,7 @@ class Fish {
         this.speed = speed;
         this.isPlayer = isPlayer;
         this.direction = Math.random() > 0.5 ? 1 : -1;
-        this.angle = Math.random() * Math.PI * 2;
+        this.angle = angle !== null ? angle : Math.random() * Math.PI * 2;
         this.targetAngle = this.angle;
         this.color = this.randomColor();
         this.tailAngle = 0;
@@ -963,8 +963,9 @@ class Game {
 
         this.bubbles.forEach(bubble => { bubble.update(); bubble.draw(this.ctx); });
 
-        this.player.targetX = this.mouseX;
-        this.player.targetY = this.mouseY;
+        // 将屏幕坐标转换为世界坐标
+        this.player.targetX = (this.mouseX - this.camera.x) / this.camera.scale;
+        this.player.targetY = (this.mouseY - this.camera.y) / this.camera.scale;
         this.player.update(this.worldWidth, this.worldHeight, this.player);
 
         // 更新敌人并移除超时或离开世界的
