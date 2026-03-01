@@ -108,23 +108,38 @@ class Fish {
             this.x = Math.max(this.size, Math.min(worldWidth - this.size, this.x));
             this.y = Math.max(this.size, Math.min(worldHeight - this.size, this.y));
         } else {
-            // AI 鱼：直线游动，不随机转向
+            // AI 鱼：智能行为
             const ageFactor = Math.max(0.5, 1 - (this.age / this.maxLifetime) * 0.3);
+            const detectRange = 200; // 检测范围
             
-            // 只躲避玩家，不随机转向
-            if (player && Math.abs(player.x - this.x) < 250 && Math.abs(player.y - this.y) < 250) {
-                if (player.size > this.size * 1.2) {
-                    // 躲避玩家
-                    const escapeAngle = Math.atan2(player.y - this.y, player.x - this.x) + Math.PI;
-                    let angleDiff = escapeAngle - this.angle;
-                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                    this.angle += angleDiff * 0.03;
+            if (player) {
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < detectRange) {
+                    if (player.size > this.size * 1.1) {
+                        // 比玩家小 - 躲避玩家（缓慢游开）
+                        const escapeAngle = Math.atan2(dy, dx) + Math.PI;
+                        let angleDiff = escapeAngle - this.angle;
+                        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                        this.angle += angleDiff * 0.02; // 缓慢转向
+                    } else if (player.size < this.size * 0.9) {
+                        // 比玩家大 - 缓慢追击玩家
+                        const chaseAngle = Math.atan2(dy, dx);
+                        let angleDiff = chaseAngle - this.angle;
+                        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                        this.angle += angleDiff * 0.015; // 更缓慢转向
+                    }
                 }
             }
             
-            this.x += Math.cos(this.angle) * this.speed * ageFactor;
-            this.y += Math.sin(this.angle) * this.speed * ageFactor;
+            // 降低基础速度
+            const moveSpeed = this.speed * 0.4 * ageFactor;
+            this.x += Math.cos(this.angle) * moveSpeed;
+            this.y += Math.sin(this.angle) * moveSpeed;
             this.direction = Math.cos(this.angle) > 0 ? 1 : -1;
             
             // 检查是否游出世界边界（标记为离开）
@@ -636,35 +651,13 @@ class Game {
         this.camera.targetScale = Math.max(minScale, Math.min(baseScale, this.camera.targetScale));
         this.camera.scale += (this.camera.targetScale - this.camera.scale) * 0.05;
         
-        // 计算玩家在屏幕上的位置
-        const playerScreenX = this.player.x * this.camera.scale - this.camera.x;
-        const playerScreenY = this.player.y * this.camera.scale - this.camera.y;
-        
-        // 只有当玩家靠近屏幕边缘时才移动摄像机
-        const edgeMargin = this.canvas.width * 0.3; // 屏幕边缘 30% 区域
-        let targetX = this.camera.x;
-        let targetY = this.camera.y;
-        
-        // 玩家靠近左边缘 - 摄像机向左移
-        if (playerScreenX < edgeMargin) {
-            targetX -= (edgeMargin - playerScreenX) * 0.5;
+        // 摄像机位置固定，不随玩家或鼠标移动
+        // 只在游戏开始时设置一次中心位置
+        if (!this.camera.initialized) {
+            this.camera.x = (this.worldWidth * this.camera.scale - this.canvas.width) / 2;
+            this.camera.y = (this.worldHeight * this.camera.scale - this.canvas.height) / 2;
+            this.camera.initialized = true;
         }
-        // 玩家靠近右边缘 - 摄像机向右移
-        else if (playerScreenX > this.canvas.width - edgeMargin) {
-            targetX += (playerScreenX - (this.canvas.width - edgeMargin)) * 0.5;
-        }
-        
-        // 玩家靠近上边缘 - 摄像机向上移
-        if (playerScreenY < edgeMargin) {
-            targetY -= (edgeMargin - playerScreenY) * 0.5;
-        }
-        // 玩家靠近下边缘 - 摄像机向下移
-        else if (playerScreenY > this.canvas.height - edgeMargin) {
-            targetY += (playerScreenY - (this.canvas.height - edgeMargin)) * 0.5;
-        }
-        
-        this.camera.x += (targetX - this.camera.x) * 0.08;
-        this.camera.y += (targetY - this.camera.y) * 0.08;
         
         // 限制摄像机边界
         const maxX = this.worldWidth * this.camera.scale - this.canvas.width;
