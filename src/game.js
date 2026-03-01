@@ -629,28 +629,25 @@ class Game {
     updateCamera() {
         if (!this.player) return;
         
+        // 根据玩家大小调整缩放 - 鱼越大，镜头拉得越远（缩放越小）
         const baseScale = 1;
         const minScale = 0.4;
         this.camera.targetScale = baseScale - (this.player.size - CONFIG.PLAYER_START_SIZE) / 65 * (baseScale - minScale);
         this.camera.targetScale = Math.max(minScale, Math.min(baseScale, this.camera.targetScale));
         this.camera.scale += (this.camera.targetScale - this.camera.scale) * 0.05;
         
-        const edgeMargin = this.canvas.width * CONFIG.EDGE_MARGIN;
-        let targetX = this.camera.x;
-        let targetY = this.camera.y;
-        
-        if (this.mouseX < edgeMargin) targetX += (edgeMargin - this.mouseX) * CONFIG.CAMERA_SPEED;
-        else if (this.mouseX > this.canvas.width - edgeMargin) targetX -= (this.mouseX - (this.canvas.width - edgeMargin)) * CONFIG.CAMERA_SPEED;
-        if (this.mouseY < edgeMargin) targetY += (edgeMargin - this.mouseY) * CONFIG.CAMERA_SPEED;
-        else if (this.mouseY > this.canvas.height - edgeMargin) targetY -= (this.mouseY - (this.canvas.height - edgeMargin)) * CONFIG.CAMERA_SPEED;
+        // 摄像机始终跟随玩家，保持玩家在屏幕中心
+        const targetX = this.player.x * this.camera.scale - this.canvas.width / 2;
+        const targetY = this.player.y * this.camera.scale - this.canvas.height / 2;
         
         this.camera.x += (targetX - this.camera.x) * 0.1;
         this.camera.y += (targetY - this.camera.y) * 0.1;
         
-        const maxX = this.worldWidth / 2 - this.canvas.width / 2;
-        const maxY = this.worldHeight / 2 - this.canvas.height / 2;
-        this.camera.x = Math.max(-maxX, Math.min(maxX, this.camera.x));
-        this.camera.y = Math.max(-maxY, Math.min(maxY, this.camera.y));
+        // 限制摄像机边界
+        const maxX = this.worldWidth * this.camera.scale - this.canvas.width;
+        const maxY = this.worldHeight * this.camera.scale - this.canvas.height;
+        this.camera.x = Math.max(0, Math.min(maxX, this.camera.x));
+        this.camera.y = Math.max(0, Math.min(maxY, this.camera.y));
     }
 
     start() {
@@ -753,18 +750,18 @@ class Game {
 
         // 计算当前屏幕内的鱼数量（只统计屏幕内的）
         const screenFish = this.enemies.filter(fish => {
-            const screenX = fish.x * this.camera.scale + this.camera.x;
-            const screenY = fish.y * this.camera.scale + this.camera.y;
-            return screenX >= -100 && screenX <= this.canvas.width + 100 &&
-                   screenY >= -100 && screenY <= this.canvas.height + 100;
+            const screenX = fish.x * this.camera.scale - this.camera.x;
+            const screenY = fish.y * this.camera.scale - this.camera.y;
+            return screenX >= -200 && screenX <= this.canvas.width + 200 &&
+                   screenY >= -200 && screenY <= this.canvas.height + 200;
         }).length;
         
-        // 屏幕内保持 8-15 条鱼
-        const minScreenFish = 8;
-        const maxScreenFish = 15;
+        // 屏幕内保持 20-35 条鱼（增加数量）
+        const minScreenFish = 20;
+        const maxScreenFish = 35;
         
         if (screenFish >= maxScreenFish) {
-            setTimeout(() => this.spawnEnemy(), 3000);
+            setTimeout(() => this.spawnEnemy(), 2000);
             return;
         }
 
@@ -778,43 +775,47 @@ class Game {
             size = Math.min(size, 80);
         }
         
-        // 从世界边界外生成，确保鱼会游进屏幕
-        let x, y, angle;
+        // 从玩家周围生成，确保鱼会游进屏幕
+        const playerScreenX = this.player.x * this.camera.scale - this.camera.x;
+        const playerScreenY = this.player.y * this.camera.scale - this.camera.y;
+        
+        // 在屏幕边缘外生成
         const edge = Math.floor(Math.random() * 4);
-        const spawnMargin = 200; // 生成在边界外 200 像素
+        const spawnDist = Math.max(this.canvas.width, this.canvas.height) * 0.7; // 生成在屏幕外 70% 距离
+        let angle;
         
         switch(edge) {
-            case 0: // 上边
-                x = Math.random() * this.worldWidth;
-                y = -spawnMargin;
-                angle = Math.PI / 2 + (Math.random() - 0.5) * 0.5; // 向下
+            case 0: // 上方生成，向下
+                angle = Math.PI / 2 + (Math.random() - 0.5) * 0.8;
                 break;
-            case 1: // 右边
-                x = this.worldWidth + spawnMargin;
-                y = Math.random() * this.worldHeight;
-                angle = Math.PI + (Math.random() - 0.5) * 0.5; // 向左
+            case 1: // 右方生成，向左
+                angle = Math.PI + (Math.random() - 0.5) * 0.8;
                 break;
-            case 2: // 下边
-                x = Math.random() * this.worldWidth;
-                y = this.worldHeight + spawnMargin;
-                angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.5; // 向上
+            case 2: // 下方生成，向上
+                angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.8;
                 break;
-            case 3: // 左边
-                x = -spawnMargin;
-                y = Math.random() * this.worldHeight;
-                angle = 0 + (Math.random() - 0.5) * 0.5; // 向右
+            case 3: // 左方生成，向右
+                angle = 0 + (Math.random() - 0.5) * 0.8;
                 break;
         }
         
-        const enemy = new Fish(x, y, size, 1.5 + Math.random() * 1.5, false, null, angle);
+        // 从屏幕边缘外生成，朝向玩家
+        const spawnX = playerScreenX + Math.cos(angle + Math.PI) * spawnDist;
+        const spawnY = playerScreenY + Math.sin(angle + Math.PI) * spawnDist;
+        
+        // 转换为世界坐标
+        const worldX = (spawnX + this.camera.x) / this.camera.scale;
+        const worldY = (spawnY + this.camera.y) / this.camera.scale;
+        
+        const enemy = new Fish(worldX, worldY, size, 2 + Math.random() * 2, false, null, angle);
         this.enemies.push(enemy);
         
-        // 根据屏幕内鱼数量调整生成速度
+        // 加快生成速度
         let nextSpawn;
         if (screenFish < minScreenFish) {
-            nextSpawn = 800; // 快速生成
+            nextSpawn = 200; // 快速生成
         } else {
-            nextSpawn = 2000 + Math.random() * 1000; // 正常生成
+            nextSpawn = 600 + Math.random() * 400; // 正常生成
         }
         setTimeout(() => this.spawnEnemy(), nextSpawn);
     }
