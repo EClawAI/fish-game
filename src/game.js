@@ -47,7 +47,7 @@ class Fish {
         this.speed = speed;
         this.isPlayer = isPlayer;
         this.direction = Math.random() > 0.5 ? 1 : -1;
-        this.angle = angle !== null ? angle : Math.random() * Math.PI * 2;
+        this.angle = Math.random() * Math.PI * 2;
         this.targetAngle = this.angle;
         this.color = this.randomColor();
         this.tailAngle = 0;
